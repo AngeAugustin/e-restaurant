@@ -8,7 +8,7 @@ import { exportElementToPdf } from "@/lib/receipt-pdf";
 import type { ISale } from "@/types";
 import { toast } from "@/hooks/use-toast";
 
-const BUSINESS = "E-STOCK";
+const BUSINESS = "e-Restaurant";
 
 function ticketId(saleId: string): string {
   const clean = String(saleId).replace(/\s/g, "");
