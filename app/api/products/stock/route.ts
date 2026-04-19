@@ -13,7 +13,7 @@ export async function GET() {
 
   await connectDB();
 
-  const [products, suppliedRows, soldRows] = await Promise.all([
+  const [products, suppliedRows, soldRows, latestSupplyByProduct] = await Promise.all([
     Product.find().sort({ name: 1 }).lean(),
     Supply.aggregate<{ _id: Types.ObjectId; total: number }>([
       { $group: { _id: "$product", total: { $sum: "$totalUnits" } } },
@@ -28,18 +28,41 @@ export async function GET() {
         },
       },
     ]),
+    Supply.aggregate<{
+      _id: Types.ObjectId;
+      marketSellingPrice: number;
+      totalCost: number;
+      totalUnits: number;
+    }>([
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: "$product",
+          marketSellingPrice: { $first: "$marketSellingPrice" },
+          totalCost: { $first: "$totalCost" },
+          totalUnits: { $first: "$totalUnits" },
+        },
+      },
+    ]),
   ]);
 
   const suppliedMap = new Map(suppliedRows.map((r) => [r._id.toString(), r.total]));
   const soldMap = new Map(soldRows.map((r) => [r._id.toString(), r.total]));
+  const latestMap = new Map(latestSupplyByProduct.map((r) => [r._id.toString(), r]));
 
   const productsWithStock = products.map((p) => {
     const id = p._id.toString();
     const totalSupplied = suppliedMap.get(id) ?? 0;
     const totalSold = soldMap.get(id) ?? 0;
+    const latest = latestMap.get(id);
+    const hasLatest = latest && latest.totalUnits > 0;
+    const marketSellingPrice = hasLatest ? latest.marketSellingPrice : p.sellingPrice;
+    const purchaseUnitCost = hasLatest ? latest.totalCost / latest.totalUnits : 0;
     return {
       ...p,
       stock: totalSupplied - totalSold,
+      marketSellingPrice,
+      purchaseUnitCost,
     };
   });
 

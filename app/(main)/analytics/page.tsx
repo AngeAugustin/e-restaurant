@@ -16,10 +16,6 @@ const AnalyticsCharts = dynamic(() => import("./AnalyticsCharts"), {
     <div className="grid grid-cols-1 gap-6">
       <Skeleton className="h-80 rounded-xl" />
       <Skeleton className="h-80 rounded-xl" />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Skeleton className="h-72 rounded-xl" />
-        <Skeleton className="h-72 rounded-xl" />
-      </div>
     </div>
   ),
 });
@@ -53,10 +49,6 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-1 gap-6">
           <Skeleton className="h-80 rounded-xl" />
           <Skeleton className="h-80 rounded-xl" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Skeleton className="h-72 rounded-xl" />
-            <Skeleton className="h-72 rounded-xl" />
-          </div>
         </div>
       ) : (
         <AnalyticsCharts data={data} />
@@ -89,6 +81,7 @@ export default function AnalyticsPage() {
                       <th className="text-left py-3 px-3 text-xs font-medium text-[#9CA3AF]">Produit</th>
                       <th className="text-right py-3 px-3 text-xs font-medium text-[#9CA3AF]">Unités vendues</th>
                       <th className="text-right py-3 px-3 text-xs font-medium text-[#9CA3AF]">Revenus</th>
+                      <th className="text-right py-3 px-3 text-xs font-medium text-[#9CA3AF]">Marge</th>
                       <th className="text-right py-3 px-3 text-xs font-medium text-[#9CA3AF]">% du CA</th>
                     </tr>
                   </thead>
@@ -108,6 +101,9 @@ export default function AnalyticsPage() {
                           <td className="py-3 px-3 text-right text-[#374151]">{product.units}</td>
                           <td className="py-3 px-3 text-right font-semibold text-[#0D0D0D]">
                             {formatCurrency(product.revenue)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-medium text-green-800">
+                            {formatCurrency(product.margin)}
                           </td>
                           <td className="py-3 px-3 text-right">
                             <div className="flex items-center justify-end gap-2">

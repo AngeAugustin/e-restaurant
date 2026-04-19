@@ -4,12 +4,16 @@ export interface ISaleItemDocument {
   product: Types.ObjectId;
   quantity: number;
   unitPrice: number;
+  /** Coût d’achat unitaire (dernier appro au moment de la ligne), pour la marge */
+  unitCost?: number;
   total: number;
 }
 
 export interface ISaleDocument extends Document {
   waitress: Types.ObjectId;
-  table: Types.ObjectId;
+  /** Ancien schéma mono-table (migration automatique vers `tables`) */
+  table?: Types.ObjectId;
+  tables?: Types.ObjectId[];
   items: ISaleItemDocument[];
   totalAmount: number;
   amountPaid?: number;
@@ -38,6 +42,10 @@ const SaleItemSchema = new Schema<ISaleItemDocument>(
       required: true,
       min: [0, "Le prix ne peut pas être négatif"],
     },
+    unitCost: {
+      type: Number,
+      min: [0, "Le coût ne peut pas être négatif"],
+    },
     total: {
       type: Number,
       required: true,
@@ -56,7 +64,11 @@ const SaleSchema = new Schema<ISaleDocument>(
     table: {
       type: Schema.Types.ObjectId,
       ref: "RestaurantTable",
-      required: [true, "La table est requise"],
+      required: false,
+    },
+    tables: {
+      type: [Schema.Types.ObjectId],
+      ref: "RestaurantTable",
     },
     items: {
       type: [SaleItemSchema],
@@ -95,6 +107,24 @@ const SaleSchema = new Schema<ISaleDocument>(
   },
   { timestamps: true }
 );
+
+SaleSchema.pre("validate", function (next) {
+  const tables = this.tables as Types.ObjectId[] | undefined;
+  if ((!tables || tables.length === 0) && this.table) {
+    this.set("tables", [this.table]);
+  }
+  if (!this.tables || this.tables.length === 0) {
+    this.invalidate("tables", "Au moins une table est requise");
+  }
+  next();
+});
+
+SaleSchema.pre("save", function (next) {
+  if (this.tables && this.tables.length > 0) {
+    this.set("table", undefined);
+  }
+  next();
+});
 
 SaleSchema.index({ status: 1, createdAt: -1 });
 

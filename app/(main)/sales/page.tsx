@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import type { ISale } from "@/types";
+import { formatSaleTablesLine } from "@/lib/sale-tables";
 import { CloseSaleDialog } from "@/components/sales/CloseSaleDialog";
 
 async function fetchSales(): Promise<ISale[]> {
@@ -88,7 +89,7 @@ export default function SalesPage() {
                   <thead>
                     <tr className="border-b border-[#F5F5F5]">
                       <th className="text-left py-3 px-3 text-xs font-medium text-[#9CA3AF]">Date</th>
-                      <th className="text-left py-3 px-3 text-xs font-medium text-[#9CA3AF]">Table</th>
+                      <th className="text-left py-3 px-3 text-xs font-medium text-[#9CA3AF]">Tables</th>
                       <th className="text-left py-3 px-3 text-xs font-medium text-[#9CA3AF]">Serveuse</th>
                       <th className="text-center py-3 px-3 text-xs font-medium text-[#9CA3AF]">Articles</th>
                       <th className="text-right py-3 px-3 text-xs font-medium text-[#9CA3AF]">Total</th>
@@ -102,7 +103,6 @@ export default function SalesPage() {
                     <AnimatePresence>
                       {sales?.map((sale) => {
                         const waitress = sale.waitress as { firstName: string; lastName: string };
-                        const table = sale.table as { number: number; name?: string };
                         return (
                           <motion.tr
                             key={sale._id}
@@ -114,8 +114,8 @@ export default function SalesPage() {
                             <td className="py-3.5 px-3 text-[#6B7280]">
                               {formatDateTime(sale.createdAt)}
                             </td>
-                            <td className="py-3.5 px-3 font-medium text-[#0D0D0D]">
-                              {table?.name ?? `Table ${table?.number}`}
+                            <td className="py-3.5 px-3 font-medium text-[#0D0D0D] max-w-[200px] truncate" title={formatSaleTablesLine(sale)}>
+                              {formatSaleTablesLine(sale)}
                             </td>
                             <td className="py-3.5 px-3 text-[#374151]">
                               {waitress?.firstName} {waitress?.lastName}

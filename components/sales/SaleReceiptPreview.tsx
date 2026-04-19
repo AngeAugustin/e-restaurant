@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDateTime, formatSalePaymentLabel } from "@/lib/utils";
 import { exportElementToPdf } from "@/lib/receipt-pdf";
 import type { ISale } from "@/types";
+import { formatSaleTablesLine } from "@/lib/sale-tables";
 import { toast } from "@/hooks/use-toast";
 
 const BUSINESS = "e-Restaurant";
@@ -20,8 +21,9 @@ export function SaleReceiptPreview({ sale }: { sale: ISale }) {
   const [pdfLoading, setPdfLoading] = useState(false);
 
   const waitress = sale.waitress as { firstName?: string; lastName?: string };
-  const table = sale.table as { number?: number; name?: string };
-  const tableLabel = table?.name?.trim() ? table.name : `Table ${table?.number ?? "—"}`;
+  const tableLabel = formatSaleTablesLine(sale);
+  const tableHeading =
+    Array.isArray(sale.tables) && sale.tables.length > 1 ? "Tables" : "Table";
   const waitressLabel = [waitress?.firstName, waitress?.lastName].filter(Boolean).join(" ") || "—";
 
   const handlePrint = () => {
@@ -101,8 +103,8 @@ export function SaleReceiptPreview({ sale }: { sale: ISale }) {
             <span className="font-semibold tracking-wide text-[#111]">{ticketId(sale._id)}</span>
           </div>
           <div className="flex justify-between gap-2">
-            <span className="text-[#6B7280]">Table</span>
-            <span className="font-medium text-[#111]">{tableLabel}</span>
+            <span className="text-[#6B7280]">{tableHeading}</span>
+            <span className="font-medium text-[#111] text-right max-w-[65%]">{tableLabel}</span>
           </div>
           <div className="flex justify-between gap-2">
             <span className="text-[#6B7280]">Serveuse</span>

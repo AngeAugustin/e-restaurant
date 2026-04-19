@@ -28,6 +28,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // Fetch sales that include this product
   const sales = await Sale.find({ "items.product": id, status: "COMPLETED" })
     .populate("waitress", "firstName lastName")
+    .populate("tables", "number name")
     .populate("table", "number name")
     .sort({ createdAt: -1 })
     .limit(50);

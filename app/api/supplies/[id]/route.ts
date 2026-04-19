@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import { isStandardSupplyLotSize } from "@/lib/supply-lot-sizes";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
 
@@ -32,6 +33,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const product = await Product.findById(productId);
   if (!product) {
     return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
+  }
+
+  const nextLotSize = Number(lotSize);
+  if (
+    !Number.isFinite(nextLotSize) ||
+    (!isStandardSupplyLotSize(nextLotSize) && nextLotSize !== supply.lotSize)
+  ) {
+    return NextResponse.json(
+      { error: "Taille du lot invalide : choisir 3, 6, 12 ou 24 unités" },
+      { status: 400 }
+    );
   }
 
   const oldProductId = supply.product.toString();

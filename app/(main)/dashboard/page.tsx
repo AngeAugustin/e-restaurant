@@ -13,9 +13,9 @@ const DashboardCharts = dynamic(() => import("./DashboardCharts"), {
   ssr: false,
   loading: () => (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Skeleton className="h-64 rounded-xl" />
-        <Skeleton className="h-64 rounded-xl" />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[13fr_7fr]">
+        <Skeleton className="h-[22rem] rounded-xl" />
+        <Skeleton className="h-[22rem] rounded-xl" />
       </div>
       <Skeleton className="h-48 rounded-xl" />
     </div>
@@ -84,9 +84,9 @@ export default function DashboardPage() {
 
       {isLoading || !data ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Skeleton className="h-64 rounded-xl" />
-            <Skeleton className="h-64 rounded-xl" />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[13fr_7fr]">
+            <Skeleton className="h-[22rem] rounded-xl" />
+            <Skeleton className="h-[22rem] rounded-xl" />
           </div>
           <Skeleton className="h-48 rounded-xl" />
         </div>

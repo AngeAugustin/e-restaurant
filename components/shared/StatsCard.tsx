@@ -10,25 +10,63 @@ interface StatsCardProps {
   subtitle?: string;
   icon: LucideIcon;
   trend?: { value: number; label: string };
+  /** Texte affiché dans le cercle à droite (ex. valeur courte). Sinon déduit de `value` si c'est un nombre. */
+  ringDisplay?: string;
   variant?: "default" | "dark" | "success" | "warning" | "danger";
   index?: number;
 }
 
-const variants = {
-  default: "bg-white border-[#E5E5E5] text-[#0D0D0D]",
-  dark: "bg-[#0D0D0D] border-[#0D0D0D] text-white",
-  success: "bg-green-50 border-green-100 text-green-900",
-  warning: "bg-amber-50 border-amber-100 text-amber-900",
-  danger: "bg-red-50 border-red-100 text-red-900",
-};
+const accent = {
+  default: {
+    icon: "bg-teal-700",
+    bars: "bg-teal-700",
+    ring: "border-teal-700 text-teal-700",
+  },
+  dark: {
+    icon: "bg-teal-800",
+    bars: "bg-teal-800",
+    ring: "border-teal-800 text-teal-800",
+  },
+  success: {
+    icon: "bg-emerald-600",
+    bars: "bg-emerald-600",
+    ring: "border-emerald-600 text-emerald-600",
+  },
+  warning: {
+    icon: "bg-orange-500",
+    bars: "bg-orange-500",
+    ring: "border-orange-500 text-orange-500",
+  },
+  danger: {
+    icon: "bg-red-600",
+    bars: "bg-red-600",
+    ring: "border-red-600 text-red-600",
+  },
+} as const;
 
-const iconVariants = {
-  default: "bg-[#F5F5F5] text-[#0D0D0D]",
-  dark: "bg-white/10 text-white",
-  success: "bg-green-100 text-green-700",
-  warning: "bg-amber-100 text-amber-700",
-  danger: "bg-red-100 text-red-700",
-};
+function MiniBars({ className }: { className: string }) {
+  const heights = ["h-2", "h-3.5", "h-5", "h-7"] as const;
+  return (
+    <div className="flex h-10 w-8 shrink-0 items-end justify-center gap-0.5">
+      {heights.map((h, i) => (
+        <div key={i} className={cn("w-1.5 rounded-sm", className, h)} />
+      ))}
+    </div>
+  );
+}
+
+function RingBadge({ className, children }: { className: string; children: string }) {
+  return (
+    <div
+      className={cn(
+        "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 text-[0.625rem] font-bold tabular-nums leading-none",
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}
 
 export function StatsCard({
   title,
@@ -36,51 +74,57 @@ export function StatsCard({
   subtitle,
   icon: Icon,
   trend,
+  ringDisplay,
   variant = "default",
   index = 0,
 }: StatsCardProps) {
+  const a = accent[variant];
+  const preferRing = index % 4 >= 2;
+  const inferredRing =
+    ringDisplay ??
+    (typeof value === "number"
+      ? String(value)
+      : typeof value === "string" && value.length <= 5
+        ? value
+        : null);
+  const useRing = preferRing && inferredRing !== null;
+  const trendColor =
+    trend && trend.value < 0 ? "text-red-600" : "text-[#28a745]";
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
-      whileHover={{ y: -2, shadow: "lg" }}
+      whileHover={{ y: -2 }}
       className={cn(
-        "rounded-xl border p-5 transition-all duration-200 hover:shadow-md cursor-default",
-        variants[variant]
+        "flex cursor-default items-center gap-4 rounded-2xl bg-white p-4 shadow-[0_4px_6px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04] transition-shadow duration-200 hover:shadow-[0_6px_12px_rgba(0,0,0,0.06)]"
       )}
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", iconVariants[variant])}>
-          <Icon className="w-4 h-4" />
+      <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white", a.icon)}>
+        <Icon className="h-5 w-5 stroke-[1.75]" />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+          <p className="text-xl font-bold tracking-tight text-[#0D0D0D]">{value}</p>
+          {trend != null && (
+            <span className={cn("text-[0.729rem] font-semibold tabular-nums", trendColor)}>
+              {trend.value >= 0 ? "+" : ""}
+              {trend.value}%
+              {trend.label ? ` ${trend.label}` : ""}
+            </span>
+          )}
         </div>
-        {trend && (
-          <span
-            className={cn(
-              "text-xs font-medium px-2 py-0.5 rounded-full",
-              trend.value >= 0
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-            )}
-          >
-            {trend.value >= 0 ? "+" : ""}
-            {trend.value}% {trend.label}
-          </span>
-        )}
+        <p className="mt-0.5 text-[0.729rem] font-medium text-[#6c757d]">{title}</p>
+        {subtitle ? <p className="mt-0.5 text-[0.625rem] text-[#9CA3AF]">{subtitle}</p> : null}
       </div>
-      <div>
-        <p className={cn("text-2xl font-bold tracking-tight", variant === "dark" ? "text-white" : "text-[#0D0D0D]")}>
-          {value}
-        </p>
-        <p className={cn("text-sm font-medium mt-0.5", variant === "dark" ? "text-white/70" : "text-[#6B7280]")}>
-          {title}
-        </p>
-        {subtitle && (
-          <p className={cn("text-xs mt-1", variant === "dark" ? "text-white/40" : "text-[#9CA3AF]")}>
-            {subtitle}
-          </p>
-        )}
-      </div>
+
+      {useRing ? (
+        <RingBadge className={a.ring}>{inferredRing!}</RingBadge>
+      ) : (
+        <MiniBars className={a.bars} />
+      )}
     </motion.div>
   );
 }

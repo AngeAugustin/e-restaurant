@@ -82,6 +82,7 @@ export async function GET() {
     Product.find({}, { _id: 1 }).lean(),
     Sale.find()
       .populate("waitress", "firstName lastName")
+      .populate("tables", "number name")
       .populate("table", "number name")
       .sort({ createdAt: -1 })
       .limit(5)

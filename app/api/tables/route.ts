@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import RestaurantTable from "@/models/RestaurantTable";
 import Sale from "@/models/Sale";
+import { saleTableIdsFromPayload } from "@/lib/sale-tables";
 
 export async function GET() {
   const { error } = await requireAuth();
@@ -11,12 +12,13 @@ export async function GET() {
   await connectDB();
   const tables = await RestaurantTable.find().sort({ number: 1 }).lean();
 
-  const pendingSales = await Sale.find({ status: "PENDING" }).select("table").lean();
+  const pendingSales = await Sale.find({ status: "PENDING" }).select("table tables").lean();
   const tableIdToSaleId = new Map<string, string>();
   for (const s of pendingSales) {
-    const tid = s.table.toString();
-    if (!tableIdToSaleId.has(tid)) {
-      tableIdToSaleId.set(tid, s._id.toString());
+    for (const tid of saleTableIdsFromPayload(s)) {
+      if (!tableIdToSaleId.has(tid)) {
+        tableIdToSaleId.set(tid, s._id.toString());
+      }
     }
   }
 

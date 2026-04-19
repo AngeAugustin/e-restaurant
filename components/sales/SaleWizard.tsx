@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { IWaitress, IRestaurantTable, ISale, ISaleItem } from "@/types";
+import { formatTableIdsWithCatalog, saleTableIdsFromPayload } from "@/lib/sale-tables";
 import { ProductThumb } from "@/components/sales/ProductThumb";
 
 interface ProductWithStock {
@@ -38,6 +39,10 @@ interface ProductWithStock {
   name: string;
   image?: string;
   sellingPrice: number;
+  /** Prix unitaire appliqué en vente (dernier appro) */
+  marketSellingPrice: number;
+  /** Coût d’achat unitaire du dernier appro */
+  purchaseUnitCost: number;
   stock: number;
 }
 
@@ -53,7 +58,7 @@ interface CartItem {
 type Step = 1 | 2 | 3;
 
 const STEPS: { n: Step; label: string; description: string; icon: typeof User }[] = [
-  { n: 1, label: "Service", description: "Serveuse et table", icon: User },
+  { n: 1, label: "Service", description: "Serveuse et tables", icon: User },
   { n: 2, label: "Commande", description: "Sélection des produits", icon: Package },
   { n: 3, label: "Validation", description: "Récapitulatif", icon: Receipt },
 ];
@@ -77,7 +82,7 @@ export default function SaleWizard({
   const hydratedRef = useRef(false);
   const [step, setStep] = useState<Step>(1);
   const [waitressId, setWaitressId] = useState("");
-  const [tableId, setTableId] = useState("");
+  const [tableIds, setTableIds] = useState<string[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -126,9 +131,8 @@ export default function SaleWizard({
     if (sale.status !== "PENDING") return;
 
     const w = sale.waitress as { _id?: string };
-    const t = sale.table as { _id?: string };
     setWaitressId(typeof sale.waitress === "string" ? sale.waitress : (w._id ?? ""));
-    setTableId(typeof sale.table === "string" ? sale.table : (t._id ?? ""));
+    setTableIds(saleTableIdsFromPayload(sale));
 
     setCart(
       sale.items.map((item) => {
@@ -139,7 +143,7 @@ export default function SaleWizard({
           productId,
           name: prod?.name ?? "Produit",
           image: prod?.image,
-          price: stockP?.sellingPrice ?? item.unitPrice,
+          price: item.unitPrice,
           quantity: item.quantity,
           maxStock: Math.max(item.quantity, stockP?.stock ?? 0),
         };
@@ -161,7 +165,7 @@ export default function SaleWizard({
           productId: product._id,
           name: product.name,
           image: product.image,
-          price: product.sellingPrice,
+          price: product.marketSellingPrice,
           quantity: 1,
           maxStock: product.stock,
         },
@@ -186,12 +190,12 @@ export default function SaleWizard({
   };
 
   const handleSubmit = async () => {
-    if (!waitressId || !tableId || cart.length === 0) return;
+    if (!waitressId || tableIds.length === 0 || cart.length === 0) return;
     setIsSubmitting(true);
 
     const payload = {
       waitressId,
-      tableId,
+      tableIds,
       items: cart.map((i) => ({ productId: i.productId, quantity: i.quantity })),
     };
 
@@ -239,10 +243,7 @@ export default function SaleWizard({
     return w ? `${w.firstName} ${w.lastName}` : "";
   };
 
-  const tableLabel = () => {
-    const t = tables?.find((x) => x._id === tableId);
-    return t ? (t.name ?? `Table ${t.number}`) : "";
-  };
+  const tableLabel = () => formatTableIdsWithCatalog(tableIds, tables);
 
   /** Table réservée par une autre vente en attente (pas la vente en cours d’édition) */
   const isTableOccupiedByOtherSale = (t: IRestaurantTable) => {
@@ -293,7 +294,7 @@ export default function SaleWizard({
           <p className="text-sm text-[#6B7280] mt-1">
             {mode === "create"
               ? "Enregistrez une commande en trois étapes : service, panier, validation."
-              : "Modifiez la serveuse, la table ou les articles tant que la vente est en attente."}
+              : "Modifiez la serveuse, les tables ou les articles tant que la vente est en attente."}
           </p>
         </div>
       </div>
@@ -367,7 +368,7 @@ export default function SaleWizard({
                   </div>
                   <div>
                     <CardTitle className="text-base">Serveuse</CardTitle>
-                    <CardDescription>Qui prend en charge cette table ?</CardDescription>
+                    <CardDescription>Qui prend en charge cette commande ?</CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -395,8 +396,8 @@ export default function SaleWizard({
                     <UtensilsCrossed className="w-4 h-4 text-[#0D0D0D]" />
                   </div>
                   <div>
-                    <CardTitle className="text-base">Table</CardTitle>
-                    <CardDescription>Emplacement de la commande</CardDescription>
+                    <CardTitle className="text-base">Tables</CardTitle>
+                    <CardDescription>Sélectionnez une ou plusieurs tables</CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -404,13 +405,17 @@ export default function SaleWizard({
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {tables?.map((t) => {
                     const occupied = isTableOccupiedByOtherSale(t);
-                    const selected = tableId === t._id;
+                    const selected = tableIds.includes(t._id);
                     return (
                       <button
                         key={t._id}
                         type="button"
                         disabled={occupied}
-                        onClick={() => setTableId(t._id)}
+                        onClick={() =>
+                          setTableIds((prev) =>
+                            prev.includes(t._id) ? prev.filter((id) => id !== t._id) : [...prev, t._id]
+                          )
+                        }
                         title={occupied ? "Table occupée par une commande en attente" : undefined}
                         className={cn(
                           "rounded-xl border-2 px-2 py-2.5 text-sm font-medium transition-all flex flex-col items-center justify-center min-h-[4.25rem]",
@@ -477,7 +482,10 @@ export default function SaleWizard({
                           {product.name}
                         </p>
                         <p className={cn("text-xs mt-1", inCart ? "text-white/80" : "text-[#374151]")}>
-                          {formatCurrency(product.sellingPrice)}
+                          {formatCurrency(product.marketSellingPrice)}
+                          {!inCart && product.marketSellingPrice !== product.sellingPrice && (
+                            <span className="text-[#9CA3AF]"> · cat. {formatCurrency(product.sellingPrice)}</span>
+                          )}
                         </p>
                         <p className={cn("text-xs mt-auto pt-1.5", inCart ? "text-white/60" : "text-[#9CA3AF]")}>
                           Stock {product.stock}
@@ -583,9 +591,9 @@ export default function SaleWizard({
                   <span className="text-[#6B7280]">Serveuse</span>
                   <span className="font-medium text-[#0D0D0D]">{waitressName()}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#6B7280]">Table</span>
-                  <span className="font-medium text-[#0D0D0D]">{tableLabel()}</span>
+                <div className="flex justify-between text-sm gap-4">
+                  <span className="text-[#6B7280] shrink-0">Tables</span>
+                  <span className="font-medium text-[#0D0D0D] text-right">{tableLabel()}</span>
                 </div>
                 <div className="border-t border-[#E5E5E5] pt-4 space-y-2">
                   {cart.map((item) => (
@@ -622,7 +630,7 @@ export default function SaleWizard({
           {step === 1 && (
             <Button
               onClick={() => setStep(2)}
-              disabled={!waitressId || !tableId}
+              disabled={!waitressId || tableIds.length === 0}
               className="w-full sm:w-auto min-w-[160px]"
             >
               Continuer

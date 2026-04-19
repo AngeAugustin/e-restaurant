@@ -4,6 +4,12 @@ import { requireAuth } from "@/lib/auth-middleware";
 import Sale from "@/models/Sale";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
+import { resolveSaleLinePricing } from "@/lib/sale-pricing";
+import {
+  parseTableIdsFromRequestBody,
+  pendingSaleUsesAnyTableFilter,
+} from "@/lib/sale-tables-server";
+import { Types } from "mongoose";
 import "@/models/Waitress";
 import "@/models/RestaurantTable";
 import "@/models/User";
@@ -15,6 +21,7 @@ export async function GET() {
   await connectDB();
   const sales = await Sale.find()
     .populate("waitress", "firstName lastName")
+    .populate("tables", "number name")
     .populate("table", "number name")
     .populate("items.product", "name image sellingPrice")
     .populate("createdBy", "firstName lastName")
@@ -29,18 +36,22 @@ export async function POST(req: NextRequest) {
 
   await connectDB();
   const body = await req.json();
-  const { waitressId, tableId, items } = body;
+  const { waitressId, items } = body;
+  const tableIds = parseTableIdsFromRequestBody(body);
 
-  if (!waitressId || !tableId || !items || items.length === 0) {
-    return NextResponse.json({ error: "Serveuse, table et produits requis" }, { status: 400 });
+  if (!waitressId || !tableIds || !items || items.length === 0) {
+    return NextResponse.json(
+      { error: "Serveuse, au moins une table et des produits sont requis" },
+      { status: 400 }
+    );
   }
 
-  const pendingOnTable = await Sale.findOne({ status: "PENDING", table: tableId });
-  if (pendingOnTable) {
+  const pendingConflict = await Sale.findOne(pendingSaleUsesAnyTableFilter(tableIds));
+  if (pendingConflict) {
     return NextResponse.json(
       {
         error:
-          "Cette table a déjà une commande en attente. Clôturez-la ou choisissez une autre table.",
+          "Une ou plusieurs tables ont déjà une commande en attente. Clôturez-la ou modifiez la sélection.",
       },
       { status: 409 }
     );
@@ -72,15 +83,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Build sale items with current prices
+  // Prix marché + coût unitaire (dernier appro), sinon prix catalogue produit
   const saleItems = await Promise.all(
     items.map(async (item: { productId: string; quantity: number }) => {
-      const product = await Product.findById(item.productId);
+      const { unitPrice, unitCost } = await resolveSaleLinePricing(item.productId);
       return {
         product: item.productId,
         quantity: item.quantity,
-        unitPrice: product!.sellingPrice,
-        total: product!.sellingPrice * item.quantity,
+        unitPrice,
+        unitCost,
+        total: unitPrice * item.quantity,
       };
     })
   );
@@ -89,7 +101,7 @@ export async function POST(req: NextRequest) {
 
   const sale = await Sale.create({
     waitress: waitressId,
-    table: tableId,
+    tables: tableIds.map((tid) => new Types.ObjectId(tid)),
     items: saleItems,
     totalAmount,
     status: "PENDING",
@@ -97,6 +109,7 @@ export async function POST(req: NextRequest) {
   });
 
   await sale.populate("waitress", "firstName lastName");
+  await sale.populate("tables", "number name");
   await sale.populate("table", "number name");
   await sale.populate("items.product", "name image sellingPrice");
 

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { lotSizeSelectOptions, isValidLotSizeChoice } from "@/lib/supply-lot-sizes";
 import type { ISupply } from "@/types";
 
 interface ProductOption {
@@ -58,6 +59,8 @@ interface SupplyForm {
   marketSellingPrice: string;
 }
 
+type SupplyDraftLine = SupplyForm & { id: string };
+
 const emptyForm = (): SupplyForm => ({
   productId: "",
   lotSize: "",
@@ -65,6 +68,37 @@ const emptyForm = (): SupplyForm => ({
   numberOfLots: "",
   marketSellingPrice: "",
 });
+
+const newDraftLine = (): SupplyDraftLine => ({
+  id: globalThis.crypto?.randomUUID?.() ?? `line-${Date.now()}-${Math.random()}`,
+  ...emptyForm(),
+});
+
+function isLineComplete(line: SupplyForm): boolean {
+  if (!line.productId) return false;
+  const lotPrice = parseFloat(line.lotPrice);
+  const numberOfLots = parseInt(line.numberOfLots, 10);
+  const marketSellingPrice = parseFloat(line.marketSellingPrice);
+  return (
+    isValidLotSizeChoice(line.lotSize) &&
+    Number.isFinite(lotPrice) &&
+    lotPrice >= 0 &&
+    Number.isFinite(numberOfLots) &&
+    numberOfLots >= 1 &&
+    Number.isFinite(marketSellingPrice) &&
+    marketSellingPrice >= 0
+  );
+}
+
+function linePayload(line: SupplyForm) {
+  return {
+    productId: line.productId,
+    lotSize: parseInt(line.lotSize, 10),
+    lotPrice: parseFloat(line.lotPrice),
+    numberOfLots: parseInt(line.numberOfLots, 10),
+    marketSellingPrice: parseFloat(line.marketSellingPrice),
+  };
+}
 
 function productIdFromSupply(s: ISupply): string {
   const p = s.product;
@@ -84,7 +118,8 @@ function SupplyDialog({
 }) {
   const qc = useQueryClient();
   const { data: products } = useQuery({ queryKey: ["products-list"], queryFn: fetchProducts });
-  const [form, setForm] = useState<SupplyForm>(emptyForm);
+  const [form, setForm] = useState<SupplyForm>(() => emptyForm());
+  const [lines, setLines] = useState<SupplyDraftLine[]>(() => [newDraftLine()]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -99,150 +134,321 @@ function SupplyDialog({
       });
     } else {
       setForm(emptyForm());
+      setLines([newDraftLine()]);
     }
   }, [open, supply]);
 
-  const totalUnits =
-    form.lotSize && form.numberOfLots
-      ? parseInt(form.lotSize) * parseInt(form.numberOfLots)
-      : 0;
-  const totalCost =
+  const updateLine = (id: string, patch: Partial<SupplyForm>) => {
+    setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  };
+
+  const addLine = () => setLines((prev) => [...prev, newDraftLine()]);
+  const removeLine = (id: string) =>
+    setLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.id !== id)));
+
+  /** Produit déjà pris sur une autre ligne → masqué dans ce sélecteur */
+  const productsForLine = (lineId: string) =>
+    (products ?? []).filter((p) => {
+      const takenOnAnotherLine = lines.some(
+        (l) => l.id !== lineId && l.productId !== "" && l.productId === p._id
+      );
+      return !takenOnAnotherLine;
+    });
+
+  const createTotals = lines.reduce(
+    (acc, line) => {
+      if (!isLineComplete(line)) return acc;
+      const u = parseInt(line.lotSize, 10) * parseInt(line.numberOfLots, 10);
+      const c = parseFloat(line.lotPrice) * parseInt(line.numberOfLots, 10);
+      return { units: acc.units + u, cost: acc.cost + c };
+    },
+    { units: 0, cost: 0 }
+  );
+
+  const editTotalUnits =
+    form.lotSize && form.numberOfLots ? parseInt(form.lotSize, 10) * parseInt(form.numberOfLots, 10) : 0;
+  const editTotalCost =
     form.lotPrice && form.numberOfLots
-      ? parseFloat(form.lotPrice) * parseInt(form.numberOfLots)
+      ? parseFloat(form.lotPrice) * parseInt(form.numberOfLots, 10)
       : 0;
+
+  const createSubmitDisabled =
+    isSubmitting || lines.length === 0 || lines.some((l) => !isLineComplete(l));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const payload = {
-      productId: form.productId,
-      lotSize: parseInt(form.lotSize, 10),
-      lotPrice: parseFloat(form.lotPrice),
-      numberOfLots: parseInt(form.numberOfLots, 10),
-      marketSellingPrice: parseFloat(form.marketSellingPrice),
-    };
-
-    const url = supply ? `/api/supplies/${supply._id}` : "/api/supplies";
-    const method = supply ? "PUT" : "POST";
-
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    setIsSubmitting(false);
-
-    if (!res.ok) {
-      const err = await res.json();
-      toast({ variant: "destructive", title: "Erreur", description: err.error });
-      return;
+    if (supply) {
+      const payload = linePayload(form);
+      const res = await fetch(`/api/supplies/${supply._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setIsSubmitting(false);
+      if (!res.ok) {
+        const err = await res.json();
+        toast({ variant: "destructive", title: "Erreur", description: err.error });
+        return;
+      }
+      toast({ variant: "success", title: "Approvisionnement modifié" });
+    } else {
+      const items = lines.map((l) => linePayload(l));
+      const res = await fetch("/api/supplies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+      setIsSubmitting(false);
+      if (!res.ok) {
+        const err = await res.json();
+        toast({ variant: "destructive", title: "Erreur", description: err.error });
+        return;
+      }
+      const data = await res.json();
+      const n = Array.isArray(data.supplies) ? data.supplies.length : items.length;
+      toast({
+        variant: "success",
+        title: n > 1 ? `${n} approvisionnements enregistrés` : "Approvisionnement enregistré",
+      });
     }
 
-    toast({
-      variant: "success",
-      title: supply ? "Approvisionnement modifié" : "Approvisionnement enregistré",
-    });
     qc.invalidateQueries({ queryKey: ["supplies"] });
     qc.invalidateQueries({ queryKey: ["products"] });
     qc.invalidateQueries({ queryKey: ["products-list"] });
     onClose();
     setForm(emptyForm());
+    setLines([newDraftLine()]);
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{supply ? "Modifier l’approvisionnement" : "Nouvel approvisionnement"}</DialogTitle>
+          {!supply && (
+            <DialogDescription>
+              Ajoutez une ou plusieurs lignes pour enregistrer plusieurs produits dans le même flux.
+            </DialogDescription>
+          )}
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Produit</Label>
-            <Select value={form.productId} onValueChange={(v) => setForm({ ...form, productId: v })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un produit" />
-              </SelectTrigger>
-              <SelectContent>
-                {products?.map((p) => (
-                  <SelectItem key={p._id} value={p._id}>
-                    {p.name}
-                  </SelectItem>
+          {supply ? (
+            <>
+              <div className="space-y-1.5">
+                <Label>Produit</Label>
+                <Select value={form.productId} onValueChange={(v) => setForm({ ...form, productId: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un produit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products?.map((p) => (
+                      <SelectItem key={p._id} value={p._id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Taille du lot (unités)</Label>
+                  <Select
+                    value={form.lotSize === "" ? undefined : form.lotSize}
+                    onValueChange={(v) => setForm({ ...form, lotSize: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choisir une taille" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {lotSizeSelectOptions(form.lotSize).map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Prix du lot (FCFA)</Label>
+                  <Input
+                    type="number"
+                    placeholder="5000"
+                    value={form.lotPrice}
+                    onChange={(e) => setForm({ ...form, lotPrice: e.target.value })}
+                    required
+                    min={0}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Nombre de lots</Label>
+                  <Input
+                    type="number"
+                    placeholder="4"
+                    value={form.numberOfLots}
+                    onChange={(e) => setForm({ ...form, numberOfLots: e.target.value })}
+                    required
+                    min={1}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Prix vente marché (FCFA)</Label>
+                  <Input
+                    type="number"
+                    placeholder="1500"
+                    value={form.marketSellingPrice}
+                    onChange={(e) => setForm({ ...form, marketSellingPrice: e.target.value })}
+                    required
+                    min={0}
+                  />
+                </div>
+              </div>
+
+              {editTotalUnits > 0 && (
+                <div className="space-y-1 rounded-lg bg-[#F5F5F5] p-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#6B7280]">Total unités</span>
+                    <span className="font-semibold text-[#0D0D0D]">{editTotalUnits} unités</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#6B7280]">Coût total</span>
+                    <span className="font-semibold text-[#0D0D0D]">{formatCurrency(editTotalCost)}</span>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {lines.map((line, index) => (
+                  <div
+                    key={line.id}
+                    className="relative space-y-3 rounded-lg border border-[#E5E5E5] bg-[#FAFAFA]/50 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-[#9CA3AF]">
+                        Produit {index + 1}
+                      </span>
+                      {lines.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 text-red-500 hover:bg-red-50 hover:text-red-600"
+                          onClick={() => removeLine(line.id)}
+                          aria-label="Retirer cette ligne"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Produit</Label>
+                      <Select
+                        value={line.productId}
+                        onValueChange={(v) => updateLine(line.id, { productId: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner un produit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {productsForLine(line.id).map((p) => (
+                            <SelectItem key={p._id} value={p._id}>
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>Taille du lot (unités)</Label>
+                        <Select
+                          value={line.lotSize === "" ? undefined : line.lotSize}
+                          onValueChange={(v) => updateLine(line.id, { lotSize: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choisir une taille" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {lotSizeSelectOptions(line.lotSize).map((n) => (
+                              <SelectItem key={n} value={String(n)}>
+                                {n}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Prix du lot (FCFA)</Label>
+                        <Input
+                          type="number"
+                          placeholder="5000"
+                          value={line.lotPrice}
+                          onChange={(e) => updateLine(line.id, { lotPrice: e.target.value })}
+                          min={0}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>Nombre de lots</Label>
+                        <Input
+                          type="number"
+                          placeholder="4"
+                          value={line.numberOfLots}
+                          onChange={(e) => updateLine(line.id, { numberOfLots: e.target.value })}
+                          min={1}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Prix vente marché (FCFA)</Label>
+                        <Input
+                          type="number"
+                          placeholder="1500"
+                          value={line.marketSellingPrice}
+                          onChange={(e) => updateLine(line.id, { marketSellingPrice: e.target.value })}
+                          min={0}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Taille du lot (unités)</Label>
-              <Input
-                type="number"
-                placeholder="6"
-                value={form.lotSize}
-                onChange={(e) => setForm({ ...form, lotSize: e.target.value })}
-                required
-                min={1}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Prix du lot (FCFA)</Label>
-              <Input
-                type="number"
-                placeholder="5000"
-                value={form.lotPrice}
-                onChange={(e) => setForm({ ...form, lotPrice: e.target.value })}
-                required
-                min={0}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Nombre de lots</Label>
-              <Input
-                type="number"
-                placeholder="4"
-                value={form.numberOfLots}
-                onChange={(e) => setForm({ ...form, numberOfLots: e.target.value })}
-                required
-                min={1}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Prix vente marché (FCFA)</Label>
-              <Input
-                type="number"
-                placeholder="1500"
-                value={form.marketSellingPrice}
-                onChange={(e) => setForm({ ...form, marketSellingPrice: e.target.value })}
-                required
-                min={0}
-              />
-            </div>
-          </div>
-
-          {/* Summary */}
-          {totalUnits > 0 && (
-            <div className="bg-[#F5F5F5] rounded-lg p-3 space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-[#6B7280]">Total unités</span>
-                <span className="font-semibold text-[#0D0D0D]">{totalUnits} unités</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-[#6B7280]">Coût total</span>
-                <span className="font-semibold text-[#0D0D0D]">{formatCurrency(totalCost)}</span>
-              </div>
-            </div>
+
+              <Button type="button" variant="outline" className="w-full border-dashed" onClick={addLine}>
+                <Plus className="mr-2 h-4 w-4" />
+                Ajouter un produit
+              </Button>
+
+              {createTotals.units > 0 && (
+                <div className="space-y-1 rounded-lg bg-[#F5F5F5] p-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#6B7280]">Total unités (toutes lignes)</span>
+                    <span className="font-semibold text-[#0D0D0D]">{createTotals.units} unités</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#6B7280]">Coût total (toutes lignes)</span>
+                    <span className="font-semibold text-[#0D0D0D]">{formatCurrency(createTotals.cost)}</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Annuler
             </Button>
-            <Button type="submit" disabled={isSubmitting || !form.productId}>
+            <Button
+              type="submit"
+              disabled={supply ? isSubmitting || !isLineComplete(form) : createSubmitDisabled}
+            >
               {isSubmitting ? "Enregistrement..." : supply ? "Mettre à jour" : "Enregistrer"}
             </Button>
           </DialogFooter>

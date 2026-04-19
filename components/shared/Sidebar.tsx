@@ -33,10 +33,10 @@ const navItems = [
   { href: "/products", label: "Produits", icon: Package, roles: ["directeur", "gerant"] },
   { href: "/supplies", label: "Approvisionnements", icon: TruckIcon, roles: ["directeur", "gerant"] },
   { href: "/sales", label: "Ventes", icon: ShoppingCart, roles: ["directeur", "gerant"] },
-  { href: "/users", label: "Utilisateurs", icon: Users, roles: ["directeur"] },
   { href: "/waitresses", label: "Serveuses", icon: UserRound, roles: ["directeur"] },
   { href: "/tables", label: "Tables", icon: Table2, roles: ["directeur"] },
   { href: "/analytics", label: "Analytiques", icon: BarChart3, roles: ["directeur"] },
+  { href: "/users", label: "Utilisateurs", icon: Users, roles: ["directeur"] },
 ];
 
 export function Sidebar() {

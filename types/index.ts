@@ -40,6 +40,8 @@ export interface ISaleItem {
   product: IProduct | string;
   quantity: number;
   unitPrice: number;
+  /** Coût unitaire d’achat (dernier appro), absent sur les anciennes ventes */
+  unitCost?: number;
   total: number;
 }
 
@@ -51,7 +53,10 @@ export type SalePaymentMethod = "CASH" | "MOBILE_MONEY";
 export interface ISale {
   _id: string;
   waitress: IWaitress | string;
-  table: IRestaurantTable | string;
+  /** Tables associées (au moins une) */
+  tables?: (IRestaurantTable | string)[];
+  /** Anciennes ventes enregistrées avec une seule table */
+  table?: IRestaurantTable | string;
   items: ISaleItem[];
   totalAmount: number;
   amountPaid?: number;
@@ -96,7 +101,7 @@ export interface DashboardStats {
 
 export interface AnalyticsData {
   revenueEvolution: { date: string; revenue: number; sales: number }[];
-  productRevenue: { name: string; revenue: number; units: number }[];
+  productRevenue: { name: string; revenue: number; units: number; margin: number }[];
   categoryDistribution: { name: string; value: number }[];
   topProductsRadar: { product: string; sales: number; revenue: number; stock: number }[];
 }

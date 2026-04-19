@@ -4,6 +4,14 @@ import { requireAuth } from "@/lib/auth-middleware";
 import Sale from "@/models/Sale";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
+import { getProductStock } from "@/lib/inventory";
+import { resolveSaleLinePricing } from "@/lib/sale-pricing";
+import { notifyLowStockAfterSaleIfNeeded } from "@/lib/stock-alerts";
+import {
+  parseTableIdsFromRequestBody,
+  pendingSaleUsesAnyTableFilter,
+} from "@/lib/sale-tables-server";
+import { Types } from "mongoose";
 import "@/models/Waitress";
 import "@/models/RestaurantTable";
 import "@/models/User";
@@ -17,6 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const sale = await Sale.findById(id)
     .populate("waitress", "firstName lastName")
+    .populate("tables", "number name")
     .populate("table", "number name")
     .populate("items.product", "name image sellingPrice")
     .populate("createdBy", "firstName lastName")
@@ -92,27 +101,46 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     sale.paymentMethod = paymentMethod;
     sale.status = "COMPLETED";
     await sale.save();
+
+    const saleId = sale._id.toString();
+    for (const item of sale.items) {
+      const productId = item.product.toString();
+      const previousStock = await getProductStock(productId, { excludeSaleId: saleId });
+      const newStock = previousStock - item.quantity;
+      const productDoc = await Product.findById(productId).select("name").lean();
+      const productName = productDoc?.name ?? "Produit";
+      void notifyLowStockAfterSaleIfNeeded({
+        productName,
+        stockAfterSale: newStock,
+      });
+    }
   } else {
-    // Update pending sale (waitress, table, items)
-    const { waitressId, tableId, items } = body;
-    const nextTableId = (tableId ?? sale.table.toString()) as string;
-    const tableConflict = await Sale.findOne({
-      status: "PENDING",
-      table: nextTableId,
-      _id: { $ne: id },
-    });
-    if (tableConflict) {
-      return NextResponse.json(
-        {
-          error:
-            "Cette table a déjà une commande en attente. Clôturez-la ou choisissez une autre table.",
-        },
-        { status: 409 }
-      );
+    // Update pending sale (waitress, tables, items)
+    const { waitressId, items } = body;
+    const bodyTouchesTables =
+      Object.prototype.hasOwnProperty.call(body, "tableIds") ||
+      Object.prototype.hasOwnProperty.call(body, "tableId");
+
+    if (bodyTouchesTables) {
+      const parsed = parseTableIdsFromRequestBody(body);
+      if (!parsed?.length) {
+        return NextResponse.json({ error: "Au moins une table est requise" }, { status: 400 });
+      }
+      const tableConflict = await Sale.findOne(pendingSaleUsesAnyTableFilter(parsed, id));
+      if (tableConflict) {
+        return NextResponse.json(
+          {
+            error:
+              "Une ou plusieurs tables ont déjà une commande en attente. Clôturez-la ou modifiez la sélection.",
+          },
+          { status: 409 }
+        );
+      }
+      sale.tables = parsed.map((tid) => new Types.ObjectId(tid));
+      sale.set("table", undefined);
     }
 
     if (waitressId) sale.waitress = waitressId;
-    if (tableId) sale.table = tableId;
 
     if (items && items.length > 0) {
       for (const item of items as Array<{ productId: string; quantity: number }>) {
@@ -144,12 +172,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
       const saleItems = await Promise.all(
         items.map(async (item: { productId: string; quantity: number }) => {
-          const product = await Product.findById(item.productId);
+          const { unitPrice, unitCost } = await resolveSaleLinePricing(item.productId);
           return {
             product: item.productId,
             quantity: item.quantity,
-            unitPrice: product!.sellingPrice,
-            total: product!.sellingPrice * item.quantity,
+            unitPrice,
+            unitCost,
+            total: unitPrice * item.quantity,
           };
         })
       );
@@ -162,6 +191,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const fresh = await Sale.findById(id)
     .populate("waitress", "firstName lastName")
+    .populate("tables", "number name")
     .populate("table", "number name")
     .populate("items.product", "name image sellingPrice")
     .populate("createdBy", "firstName lastName")

@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import type { ISale } from "@/types";
+import { formatSaleTablesLine } from "@/lib/sale-tables";
 
 interface ProductDetail {
   product: {
@@ -29,15 +31,7 @@ interface ProductDetail {
     createdBy: { firstName: string; lastName: string };
     createdAt: string;
   }>;
-  sales: Array<{
-    _id: string;
-    waitress: { firstName: string; lastName: string };
-    table: { number: number; name?: string };
-    items: Array<{ quantity: number; unitPrice: number; total: number }>;
-    totalAmount: number;
-    status: string;
-    createdAt: string;
-  }>;
+  sales: ISale[];
   stock: number;
 }
 
@@ -112,9 +106,16 @@ export default function ProductDetailPage() {
               </div>
               <h2 className="font-semibold text-[#0D0D0D] text-lg">{product.name}</h2>
               <p className="text-2xl font-bold text-[#0D0D0D] mt-1">
-                {formatCurrency(product.sellingPrice)}
+                {formatCurrency(supplies[0]?.marketSellingPrice ?? product.sellingPrice)}
               </p>
-              <p className="text-sm text-[#6B7280]">Prix de vente unitaire</p>
+              <p className="text-sm text-[#6B7280]">
+                Prix marché (dernier appro){supplies[0] ? "" : " — prix catalogue"}
+              </p>
+              {supplies[0] && supplies[0].marketSellingPrice !== product.sellingPrice && (
+                <p className="text-xs text-[#9CA3AF] mt-1">
+                  Prix catalogue fiche produit : {formatCurrency(product.sellingPrice)}
+                </p>
+              )}
 
               <div className="mt-4 pt-4 border-t border-[#E5E5E5]">
                 <div className="flex items-center justify-between">
@@ -237,25 +238,41 @@ export default function ProductDetailPage() {
                           <th className="text-left py-2 px-2 text-xs font-medium text-[#9CA3AF]">Serveuse</th>
                           <th className="text-right py-2 px-2 text-xs font-medium text-[#9CA3AF]">Qté</th>
                           <th className="text-right py-2 px-2 text-xs font-medium text-[#9CA3AF]">Total</th>
+                          <th className="text-right py-2 px-2 text-xs font-medium text-[#9CA3AF]">Marge</th>
                         </tr>
                       </thead>
                       <tbody>
                         {sales.map((sale) => {
-                          const item = sale.items[0];
+                          const lineProductId = (line: (typeof sale.items)[0]) => {
+                            const raw = line.product;
+                            if (typeof raw === "string") return raw;
+                            if (raw && typeof raw === "object" && "_id" in raw)
+                              return String((raw as { _id: string })._id);
+                            return "";
+                          };
+                          const item = sale.items.find((line) => lineProductId(line) === String(id));
+                          const lineMargin =
+                            item?.unitCost != null
+                              ? (item.total ?? 0) - item.unitCost * (item.quantity ?? 0)
+                              : null;
+                          const waitress = sale.waitress as { firstName?: string; lastName?: string };
                           return (
                             <tr key={sale._id} className="border-b border-[#FAFAFA] hover:bg-[#FAFAFA]">
                               <td className="py-2.5 px-2 text-[#374151]">{formatDate(sale.createdAt)}</td>
-                              <td className="py-2.5 px-2 text-[#374151]">
-                                Table {sale.table?.number}
+                              <td className="py-2.5 px-2 text-[#374151] max-w-[160px] truncate" title={formatSaleTablesLine(sale)}>
+                                {formatSaleTablesLine(sale)}
                               </td>
                               <td className="py-2.5 px-2 text-[#374151]">
-                                {sale.waitress?.firstName} {sale.waitress?.lastName}
+                                {waitress?.firstName} {waitress?.lastName}
                               </td>
                               <td className="py-2.5 px-2 text-right font-medium text-[#0D0D0D]">
                                 {item?.quantity}
                               </td>
                               <td className="py-2.5 px-2 text-right text-[#374151]">
                                 {formatCurrency(item?.total ?? 0)}
+                              </td>
+                              <td className="py-2.5 px-2 text-right text-[#374151]">
+                                {lineMargin != null ? formatCurrency(lineMargin) : "—"}
                               </td>
                             </tr>
                           );

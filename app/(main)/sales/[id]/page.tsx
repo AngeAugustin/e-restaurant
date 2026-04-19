@@ -19,6 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatDateTime, formatSalePaymentLabel } from "@/lib/utils";
 import type { ISale } from "@/types";
+import { formatSaleTablesLine } from "@/lib/sale-tables";
 import { ProductThumb } from "@/components/sales/ProductThumb";
 import { CloseSaleDialog } from "@/components/sales/CloseSaleDialog";
 import { SaleReceiptPreview } from "@/components/sales/SaleReceiptPreview";
@@ -67,8 +68,15 @@ export default function SaleDetailPage() {
   }
 
   const waitress = sale.waitress as { firstName: string; lastName: string };
-  const table = sale.table as { number: number; name?: string };
+  const tablesLine = formatSaleTablesLine(sale);
+  const tablesHeading =
+    Array.isArray(sale.tables) && sale.tables.length > 1 ? "Tables" : "Table";
   const createdBy = sale.createdBy as { firstName?: string; lastName?: string };
+
+  const totalMargin = sale.items.reduce((sum, item) => {
+    if (item.unitCost == null) return sum;
+    return sum + (item.total - item.unitCost * item.quantity);
+  }, 0);
 
   return (
     <>
@@ -128,8 +136,8 @@ export default function SaleDetailPage() {
                 <UtensilsCrossed className="w-4 h-4 text-[#0D0D0D]" />
               </div>
               <div>
-                <p className="text-xs text-[#9CA3AF]">Table</p>
-                <p className="font-medium text-[#0D0D0D]">{table?.name ?? `Table ${table?.number}`}</p>
+                <p className="text-xs text-[#9CA3AF]">{tablesHeading}</p>
+                <p className="font-medium text-[#0D0D0D]">{tablesLine}</p>
               </div>
             </div>
             {(createdBy?.firstName || createdBy?.lastName) && (
@@ -159,7 +167,13 @@ export default function SaleDetailPage() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-[#0D0D0D]">{name}</p>
                       <p className="text-xs text-[#6B7280]">
-                        {formatCurrency(item.unitPrice)} × {item.quantity}
+                        Prix marché {formatCurrency(item.unitPrice)} × {item.quantity}
+                        {item.unitCost != null && (
+                          <span className="block text-[#9CA3AF] mt-0.5">
+                            Coût {formatCurrency(item.unitCost)} / u. · Marge{" "}
+                            {formatCurrency(item.total - item.unitCost * item.quantity)}
+                          </span>
+                        )}
                       </p>
                     </div>
                     <p className="font-semibold text-[#0D0D0D] shrink-0">{formatCurrency(item.total)}</p>
@@ -167,9 +181,17 @@ export default function SaleDetailPage() {
                 );
               })}
             </ul>
-            <div className="flex items-center justify-between px-6 py-4 bg-[#FAFAFA] border-t border-[#E5E5E5]">
-              <span className="font-semibold text-[#0D0D0D]">Total</span>
-              <span className="text-xl font-bold text-[#0D0D0D]">{formatCurrency(sale.totalAmount)}</span>
+            <div className="space-y-2 px-6 py-4 bg-[#FAFAFA] border-t border-[#E5E5E5]">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-[#0D0D0D]">Total</span>
+                <span className="text-xl font-bold text-[#0D0D0D]">{formatCurrency(sale.totalAmount)}</span>
+              </div>
+              {sale.items.some((i) => i.unitCost != null) && (
+                <div className="flex items-center justify-between text-sm border-t border-[#E5E5E5] pt-2">
+                  <span className="text-[#6B7280]">Marge sur commande</span>
+                  <span className="font-semibold text-green-800">{formatCurrency(totalMargin)}</span>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

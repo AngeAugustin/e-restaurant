@@ -27,7 +27,7 @@ export async function GET() {
         },
       },
     ]),
-    Sale.aggregate<{ _id: Types.ObjectId; name: string; revenue: number; units: number }>([
+    Sale.aggregate<{ _id: Types.ObjectId; name: string; revenue: number; units: number; margin: number }>([
       { $match: { status: "COMPLETED" } },
       { $unwind: "$items" },
       {
@@ -35,6 +35,14 @@ export async function GET() {
           _id: "$items.product",
           revenue: { $sum: "$items.total" },
           units: { $sum: "$items.quantity" },
+          margin: {
+            $sum: {
+              $subtract: [
+                "$items.total",
+                { $multiply: [{ $ifNull: ["$items.unitCost", 0] }, "$items.quantity"] },
+              ],
+            },
+          },
         },
       },
       {
@@ -82,6 +90,7 @@ export async function GET() {
     name: r.name,
     revenue: r.revenue,
     units: r.units,
+    margin: r.margin,
   }));
 
   const categoryDistribution = productRevenue.slice(0, 8).map((p) => ({

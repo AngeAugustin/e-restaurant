@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -60,7 +61,7 @@ export default function LoginPage() {
           >
             <ChefHat className="w-6 h-6 text-white" />
           </motion.div>
-          <h1 className="text-2xl font-bold text-[#0D0D0D]">e-Stock</h1>
+          <h1 className="text-2xl font-bold text-[#0D0D0D]">e-Restaurant</h1>
           <p className="text-sm text-[#6B7280] mt-1">Connectez-vous à votre espace</p>
         </div>
 
@@ -113,6 +114,15 @@ export default function LoginPage() {
                 "Se connecter"
               )}
             </Button>
+
+            <div className="flex justify-center pt-1">
+              <Link
+                href="/mot-de-passe-oublie"
+                className="text-sm text-[#6B7280] hover:text-[#0D0D0D] transition-colors"
+              >
+                Mot de passe oublié ?
+              </Link>
+            </div>
           </form>
         </div>
 
