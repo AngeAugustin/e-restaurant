@@ -101,8 +101,31 @@ export interface DashboardStats {
 }
 
 export interface AnalyticsData {
-  revenueEvolution: { date: string; revenue: number; sales: number }[];
-  productRevenue: { name: string; revenue: number; units: number; margin: number }[];
+  period: {
+    filter: "week" | "month" | "semester" | "year" | "custom";
+    startDate: string;
+    endDate: string;
+    label: string;
+  };
+  summary: {
+    totalRevenue: number;
+    totalCost: number;
+    totalGrossProfit: number;
+    totalSales: number;
+    marginRate: number;
+    averageTicket: number;
+    revenueDeltaPct: number;
+    profitDeltaPct: number;
+  };
+  revenueEvolution: {
+    date: string;
+    revenue: number;
+    cost: number;
+    grossProfit: number;
+    marginRate: number;
+    sales: number;
+  }[];
+  productRevenue: { name: string; price: number; revenue: number; units: number; margin: number }[];
   categoryDistribution: { name: string; value: number }[];
   topProductsRadar: { product: string; sales: number; revenue: number; stock: number }[];
 }

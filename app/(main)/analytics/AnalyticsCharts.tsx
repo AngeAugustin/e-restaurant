@@ -35,7 +35,11 @@ const ChartTooltip = ({
         {payload.map((p, i) => (
           <p key={i} style={{ color: p.color }} className="font-semibold">
             {p.name}:{" "}
-            {typeof p.value === "number" && p.name === "Revenus" ? formatCurrency(p.value) : p.value}
+            {typeof p.value === "number" && ["Revenus", "Bénéfice brut"].includes(p.name)
+              ? formatCurrency(p.value)
+              : typeof p.value === "number" && p.name === "Taux de marge"
+                ? `${p.value.toFixed(1)}%`
+                : p.value}
           </p>
         ))}
       </div>
@@ -55,7 +59,7 @@ export default function AnalyticsCharts({ data }: { data: AnalyticsData }) {
         <Card>
           <CardHeader>
             <CardTitle>Évolution du Chiffre d&apos;Affaires</CardTitle>
-            <CardDescription>30 derniers jours — revenus journaliers et nombre de ventes</CardDescription>
+            <CardDescription>Période sélectionnée — revenus, bénéfice brut et nombre de ventes</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -95,6 +99,15 @@ export default function AnalyticsCharts({ data }: { data: AnalyticsData }) {
                   activeDot={{ r: 5, fill: PRIMARY_COLOR }}
                 />
                 <Line
+                  yAxisId="revenue"
+                  type="monotone"
+                  dataKey="grossProfit"
+                  name="Bénéfice brut"
+                  stroke="#15803d"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
                   yAxisId="sales"
                   type="monotone"
                   dataKey="sales"
@@ -117,8 +130,51 @@ export default function AnalyticsCharts({ data }: { data: AnalyticsData }) {
       >
         <Card>
           <CardHeader>
-            <CardTitle>Revenus et marge par produit</CardTitle>
-            <CardDescription>CA et marge cumulés (marge = CA − coût selon les lignes de vente)</CardDescription>
+            <CardTitle>Évolution du taux de marge</CardTitle>
+            <CardDescription>Période sélectionnée — bénéfice brut / revenus</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={data.revenueEvolution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F5" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10, fill: "#9CA3AF" }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={4}
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: "#9CA3AF" }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `${v.toFixed(0)}%`}
+                />
+                <Tooltip content={<ChartTooltip />} />
+                <Line
+                  type="monotone"
+                  dataKey="marginRate"
+                  name="Taux de marge"
+                  stroke="#16a34a"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 5, fill: "#16a34a" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.3 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenus et bénéfice par produit</CardTitle>
+            <CardDescription>Bénéfice brut cumulé (bénéfice = CA − coût selon les lignes de vente)</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -143,13 +199,13 @@ export default function AnalyticsCharts({ data }: { data: AnalyticsData }) {
                 <Tooltip
                   formatter={(value: number, name: string) => [
                     formatCurrency(value),
-                    name === "Revenus" ? "Revenus" : "Marge",
+                    name === "Revenus" ? "Revenus" : "Bénéfice",
                   ]}
                   contentStyle={{ borderRadius: "8px", border: "1px solid #E5E5E5", fontSize: "12px" }}
                 />
                 <Legend />
                 <Bar dataKey="revenue" fill={PRIMARY_COLOR} radius={[4, 4, 0, 0]} name="Revenus" />
-                <Bar dataKey="margin" fill="#15803d" radius={[4, 4, 0, 0]} name="Marge" />
+                <Bar dataKey="margin" fill="#15803d" radius={[4, 4, 0, 0]} name="Bénéfice" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
