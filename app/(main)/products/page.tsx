@@ -285,7 +285,7 @@ function ProductFormDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Prix de vente unitaire (FCFA)</Label>
+            <Label>Prix unitaire SOBEBRA (FCFA)</Label>
             <Input
               type="number"
               placeholder="1500"
@@ -594,7 +594,7 @@ export default function ProductsPage() {
   const { data: session } = useSession();
   const isDirector = session?.user?.role === "directeur";
   const qc = useQueryClient();
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["products"],
@@ -606,6 +606,7 @@ export default function ProductsPage() {
   const [priceMinFilter, setPriceMinFilter] = useState("");
   const [priceMaxFilter, setPriceMaxFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(20);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<ProductWithStock | undefined>();
@@ -637,12 +638,12 @@ export default function ProductsPage() {
       const matchesMax = maxPrice === null || Number.isNaN(maxPrice) ? true : p.sellingPrice <= maxPrice;
       return matchesSearch && matchesCategory && matchesMin && matchesMax;
     }) ?? [];
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, categoryFilter, priceMinFilter, priceMaxFilter]);
+  }, [search, categoryFilter, priceMinFilter, priceMaxFilter, pageSize]);
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
@@ -734,6 +735,22 @@ export default function ProductsPage() {
       </div>
 
       {/* Products Grid */}
+      <div className="mb-3 flex justify-end">
+        <label className="inline-flex items-center gap-2 text-xs text-[#6B7280]">
+          Cartes par page
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value) as (typeof PAGE_SIZE_OPTIONS)[number])}
+            className="h-8 rounded-md border border-[#E5E7EB] bg-white px-2 text-xs text-[#0D0D0D] outline-none transition-colors focus:border-[#0D0D0D]"
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {Array.from({ length: 10 }).map((_, i) => (
@@ -840,7 +857,7 @@ export default function ProductsPage() {
       <PaginationControls
         className="mt-6"
         currentPage={currentPage}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         totalItems={filtered.length}
         onPageChange={setCurrentPage}
       />

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, UserRound } from "lucide-react";
+import { Plus, Pencil, Trash2, UserRound, Eye } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { PaginationControls } from "@/components/shared/PaginationControls";
@@ -122,7 +123,7 @@ function WaitressDialog({
 }
 
 export default function WaitressesPage() {
-  const PAGE_SIZE = 12;
+  const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
   const { data: session, status } = useSession();
   const qc = useQueryClient();
 
@@ -134,6 +135,7 @@ export default function WaitressesPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [edit, setEdit] = useState<IWaitress | undefined>();
   const [waitressPendingDelete, setWaitressPendingDelete] = useState<IWaitress | null>(null);
 
@@ -162,12 +164,16 @@ export default function WaitressesPage() {
   };
 
   const count = waitresses?.length ?? 0;
-  const paginatedWaitresses = (waitresses ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const totalPages = Math.max(1, Math.ceil((waitresses?.length ?? 0) / PAGE_SIZE));
+  const paginatedWaitresses = (waitresses ?? []).slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.max(1, Math.ceil((waitresses?.length ?? 0) / pageSize));
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageSize]);
 
   if (status === "loading") return <Skeleton className="h-96" />;
   if (session?.user?.role !== "directeur") {
@@ -200,6 +206,22 @@ export default function WaitressesPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
       >
+        <div className="mb-3 flex justify-end">
+          <label className="inline-flex items-center gap-2 text-xs text-[#6B7280]">
+            Cartes par page
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value) as (typeof PAGE_SIZE_OPTIONS)[number])}
+              className="h-8 rounded-md border border-[#E5E7EB] bg-white px-2 text-xs text-[#0D0D0D] outline-none transition-colors focus:border-[#0D0D0D]"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9CA3AF]">
           Équipe
         </p>
@@ -251,24 +273,37 @@ export default function WaitressesPage() {
 
                 <div className="mt-3.5 flex justify-end gap-0.5 border-t border-[#F0F0F0] pt-2.5">
                   <Button
+                    asChild
                     type="button"
                     variant="ghost"
-                    size="sm"
-                    className="h-8 px-2.5 text-[12px] font-medium text-[#6B7280] hover:bg-[#F5F5F5] hover:text-[#0D0D0D]"
-                    onClick={() => openEdit(w)}
+                    size="icon"
+                    className="h-8 w-8 text-[#6B7280] hover:bg-[#F5F5F5] hover:text-[#0D0D0D]"
                   >
-                    <Pencil className="mr-1.5 h-3 w-3" />
-                    Modifier
+                    <Link href={`/waitresses/${w._id}`} aria-label={`Voir ${w.firstName} ${w.lastName}`} title="Détails">
+                      <Eye className="h-3.5 w-3.5" />
+                    </Link>
                   </Button>
                   <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
-                    className="h-8 px-2.5 text-[12px] font-medium text-[#9CA3AF] hover:bg-red-50 hover:text-red-600"
-                    onClick={() => setWaitressPendingDelete(w)}
+                    size="icon"
+                    className="h-8 w-8 text-[#6B7280] hover:bg-[#F5F5F5] hover:text-[#0D0D0D]"
+                    onClick={() => openEdit(w)}
+                    aria-label={`Modifier ${w.firstName} ${w.lastName}`}
+                    title="Modifier"
                   >
-                    <Trash2 className="mr-1.5 h-3 w-3" />
-                    Supprimer
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-[#9CA3AF] hover:bg-red-50 hover:text-red-600"
+                    onClick={() => setWaitressPendingDelete(w)}
+                    aria-label={`Supprimer ${w.firstName} ${w.lastName}`}
+                    title="Supprimer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </motion.article>
@@ -280,7 +315,7 @@ export default function WaitressesPage() {
       <PaginationControls
         className="mt-6"
         currentPage={currentPage}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         totalItems={waitresses?.length ?? 0}
         onPageChange={setCurrentPage}
       />

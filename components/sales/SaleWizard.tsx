@@ -121,7 +121,7 @@ export default function SaleWizard({
 
   useEffect(() => {
     if (mode !== "edit" || !sale) return;
-    if (sale.status === "COMPLETED") {
+    if (sale.status !== "PENDING") {
       router.replace(`/sales/${editSaleId}`);
     }
   }, [mode, sale, editSaleId, router]);

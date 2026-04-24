@@ -11,16 +11,14 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { TopProductsDonut } from "@/components/shared/TopProductsDonut";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import type { DashboardStats, ISale } from "@/types";
 import { formatSaleTablesLine } from "@/lib/sale-tables";
-import { CheckCircle, Clock } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, Image as ImageIcon, XCircle } from "lucide-react";
 
 const SALES_LINE_COLOR = "#0F7669";
 
@@ -53,89 +51,9 @@ function formatYAxisRevenue(v: number) {
 /** Hauteur commune des zones graphique (Ventes 7j + Top produits) */
 const CHART_HEIGHT = 280;
 
-/** Couleurs type « conformité » : bleu, orange, teal, puis compléments pour 5 segments */
-const TOP_PRODUCT_COLORS = ["#2563EB", "#EA580C", "#0F7669", "#7C3AED", "#64748B"] as const;
-
-type TopProductRow = { name: string; sold: number; revenue: number };
-
-function TopProductsDonut({ products }: { products: TopProductRow[] }) {
-  const totalSold = products.reduce((s, p) => s + p.sold, 0);
-
-  if (products.length === 0) {
-    return (
-      <p className="flex h-full min-h-0 items-center justify-center text-sm text-[#9CA3AF]">
-        Aucun produit vendu à afficher
-      </p>
-    );
-  }
-
-  const chartData = products.map((p, i) => ({
-    ...p,
-    fill: TOP_PRODUCT_COLORS[i % TOP_PRODUCT_COLORS.length],
-    pct: totalSold > 0 ? Math.round((p.sold / totalSold) * 100) : 0,
-  }));
-
-  return (
-    <div className="flex h-full min-h-0 flex-col items-stretch gap-2 overflow-y-auto overflow-x-hidden lg:flex-row lg:items-center lg:gap-4 lg:overflow-y-visible">
-      <div className="mx-auto h-[140px] w-full max-w-[200px] shrink-0 sm:h-[158px] lg:mx-0 lg:h-[182px] lg:w-[44%] lg:max-w-[220px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-            <Pie
-              data={chartData}
-              dataKey="sold"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              innerRadius="58%"
-              outerRadius="85%"
-              paddingAngle={5}
-              cornerRadius={8}
-              stroke="none"
-            >
-              {chartData.map((_, i) => (
-                <Cell key={`cell-${i}`} fill={TOP_PRODUCT_COLORS[i % TOP_PRODUCT_COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip
-              content={({ active, payload }) => {
-                if (!active || !payload?.length) return null;
-                const row = payload[0].payload as TopProductRow;
-                return (
-                  <div className="rounded-lg border border-[#E5E5E5] bg-white p-3 text-xs shadow-lg">
-                    <p className="mb-1 font-medium text-[#0D0D0D]">{row.name}</p>
-                    <p className="text-[#6B7280]">
-                      {row.sold} unités · {formatCurrency(row.revenue)}
-                    </p>
-                  </div>
-                );
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-
-      <ul className="flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-2 overflow-y-auto lg:gap-2">
-        {chartData.map((row, i) => (
-          <li key={row.name} className="flex items-end gap-1.5 text-xs">
-            <span
-              className="mb-1 h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: TOP_PRODUCT_COLORS[i % TOP_PRODUCT_COLORS.length] }}
-            />
-            <div className="flex min-w-0 flex-1 items-end gap-1.5">
-              <span className="min-w-0 max-w-[min(100%,10rem)] truncate text-[#374151]" title={row.name}>
-                {row.name}
-              </span>
-              <span className="mb-1 min-h-px min-w-[6px] flex-1 border-b border-dotted border-[#D1D5DB]" />
-            </div>
-            <span className="mb-0.5 shrink-0 text-xs font-bold tabular-nums text-[#0D0D0D]">{row.pct}%</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 export default function DashboardCharts({ data }: { data: DashboardStats }) {
+  const lowStockProducts = data.lowStockProducts ?? [];
+
   return (
     <>
       <div className="grid grid-cols-1 gap-6 mb-8 lg:grid-cols-[13fr_7fr]">
@@ -232,62 +150,127 @@ export default function DashboardCharts({ data }: { data: DashboardStats }) {
         </motion.div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.4 }}
-      >
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Ventes récentes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.recentSales?.length === 0 ? (
-              <p className="text-sm text-[#9CA3AF] text-center py-8">Aucune vente récente</p>
-            ) : (
-              <div className="space-y-2">
-                {data.recentSales?.map((sale: ISale) => {
-                  const waitress = sale.waitress as { firstName: string; lastName: string };
-                  const tablesLine = formatSaleTablesLine(sale);
-                  const saleId = typeof sale._id === "string" ? sale._id : String(sale._id);
-                  return (
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[12fr_8fr]">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Ventes récentes</CardTitle>
+              <CardDescription className="text-xs leading-snug">
+                Les 5 dernières commandes enregistrées, tous statuts confondus
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {data.recentSales?.length === 0 ? (
+                <p className="text-sm text-[#9CA3AF] text-center py-8">Aucune vente récente</p>
+              ) : (
+                <div className="space-y-2">
+                  {data.recentSales?.map((sale: ISale) => {
+                    const waitress = sale.waitress as { firstName: string; lastName: string };
+                    const tablesLine = formatSaleTablesLine(sale);
+                    const saleId = typeof sale._id === "string" ? sale._id : String(sale._id);
+                    return (
+                      <Link
+                        key={saleId}
+                        href={`/sales/${saleId}`}
+                        className="flex items-center justify-between rounded-lg p-3 text-left transition-colors hover:bg-[#FAFAFA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0D0D0D] focus-visible:ring-offset-2"
+                        aria-label={`Voir la vente — ${tablesLine}`}
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F5F5F5]">
+                            {sale.status === "COMPLETED" ? (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            ) : sale.status === "CANCELLED" ? (
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            ) : (
+                              <Clock className="h-4 w-4 text-amber-500" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-[#0D0D0D]">
+                              {tablesLine} — {waitress?.firstName} {waitress?.lastName}
+                            </p>
+                            <p className="text-xs text-[#9CA3AF]">{formatDateTime(sale.createdAt)}</p>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-3 pl-2">
+                          <Badge
+                            variant={
+                              sale.status === "COMPLETED"
+                                ? "success"
+                                : sale.status === "CANCELLED"
+                                  ? "destructive"
+                                  : "pending"
+                            }
+                          >
+                            {sale.status === "COMPLETED"
+                              ? "Clôturée"
+                              : sale.status === "CANCELLED"
+                                ? "Annulée"
+                                : "En attente"}
+                          </Badge>
+                          <span className="text-sm font-semibold tabular-nums text-[#0D0D0D]">
+                            {formatCurrency(sale.totalAmount)}
+                          </span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.46 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Produits en stock faible</CardTitle>
+              <CardDescription>Priorité de réapprovisionnement (stock &lt; 5)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {lowStockProducts.length === 0 ? (
+                <p className="py-8 text-center text-sm text-[#9CA3AF]">Aucun produit en stock faible</p>
+              ) : (
+                <div className="space-y-2">
+                  {lowStockProducts.map((product) => (
                     <Link
-                      key={saleId}
-                      href={`/sales/${saleId}`}
-                      className="flex items-center justify-between rounded-lg p-3 text-left transition-colors hover:bg-[#FAFAFA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0D0D0D] focus-visible:ring-offset-2"
-                      aria-label={`Voir la vente — ${tablesLine}`}
+                      key={product.id}
+                      href={`/products/${product.id}`}
+                      className="flex items-center justify-between rounded-lg border border-[#F1F3F5] p-2.5 transition-colors hover:bg-[#FAFAFA]"
                     >
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F5F5F5]">
-                          {sale.status === "COMPLETED" ? (
-                            <CheckCircle className="h-4 w-4 text-green-600" />
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F5F5F5]">
+                          {product.image ? (
+                            <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
                           ) : (
-                            <Clock className="h-4 w-4 text-amber-500" />
+                            <ImageIcon className="h-4 w-4 text-[#9CA3AF]" />
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-[#0D0D0D]">
-                            {tablesLine} — {waitress?.firstName} {waitress?.lastName}
-                          </p>
-                          <p className="text-xs text-[#9CA3AF]">{formatDateTime(sale.createdAt)}</p>
+                          <p className="truncate text-sm font-medium text-[#0D0D0D]">{product.name}</p>
+                          <p className="text-xs text-[#9CA3AF]">Prix: {formatCurrency(product.sellingPrice)}</p>
                         </div>
                       </div>
-                      <div className="flex shrink-0 items-center gap-3 pl-2">
-                        <Badge variant={sale.status === "COMPLETED" ? "success" : "pending"}>
-                          {sale.status === "COMPLETED" ? "Clôturée" : "En attente"}
-                        </Badge>
-                        <span className="text-sm font-semibold tabular-nums text-[#0D0D0D]">
-                          {formatCurrency(sale.totalAmount)}
-                        </span>
-                      </div>
+                      <Badge variant={product.stock <= 0 ? "destructive" : "warning"} className="shrink-0">
+                        <AlertTriangle className="mr-1 h-3 w-3" />
+                        {product.stock} unités
+                      </Badge>
                     </Link>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
     </>
   );
 }

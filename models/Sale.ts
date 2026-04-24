@@ -19,7 +19,7 @@ export interface ISaleDocument extends Document {
   amountPaid?: number;
   change?: number;
   paymentMethod?: "CASH" | "MOBILE_MONEY";
-  status: "PENDING" | "COMPLETED";
+  status: "PENDING" | "COMPLETED" | "CANCELLED";
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -96,7 +96,7 @@ const SaleSchema = new Schema<ISaleDocument>(
     },
     status: {
       type: String,
-      enum: ["PENDING", "COMPLETED"],
+      enum: ["PENDING", "COMPLETED", "CANCELLED"],
       default: "PENDING",
     },
     createdBy: {
@@ -128,7 +128,18 @@ SaleSchema.pre("save", function (next) {
 
 SaleSchema.index({ status: 1, createdAt: -1 });
 
-const Sale: Model<ISaleDocument> =
-  mongoose.models.Sale || mongoose.model<ISaleDocument>("Sale", SaleSchema);
+const existingModel = mongoose.models.Sale as Model<ISaleDocument> | undefined;
+
+if (existingModel) {
+  const statusPath = existingModel.schema.path("status") as
+    | (mongoose.SchemaType & { options?: { enum?: string[] } })
+    | undefined;
+  const enumValues = statusPath?.options?.enum;
+  if (Array.isArray(enumValues) && !enumValues.includes("CANCELLED")) {
+    statusPath.options = { ...statusPath.options, enum: [...enumValues, "CANCELLED"] };
+  }
+}
+
+const Sale: Model<ISaleDocument> = existingModel || mongoose.model<ISaleDocument>("Sale", SaleSchema);
 
 export default Sale;

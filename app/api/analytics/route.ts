@@ -230,7 +230,15 @@ export async function GET(request: Request) {
       },
       { $group: { _id: null, sales: { $sum: 1 } } },
     ]),
-    Sale.aggregate<{ _id: Types.ObjectId; name: string; price: number; revenue: number; units: number; margin: number }>([
+    Sale.aggregate<{
+      _id: Types.ObjectId;
+      name: string;
+      image: string;
+      price: number;
+      revenue: number;
+      units: number;
+      margin: number;
+    }>([
       { $match: { status: "COMPLETED", createdAt: { $gte: period.start, $lte: period.end } } },
       { $unwind: "$items" },
       {
@@ -261,6 +269,7 @@ export async function GET(request: Request) {
         $project: {
           _id: 1,
           name: { $ifNull: ["$p.name", "Inconnu"] },
+          image: { $ifNull: ["$p.image", ""] },
           price: { $ifNull: ["$p.sellingPrice", 0] },
           revenue: 1,
           units: 1,
@@ -315,6 +324,7 @@ export async function GET(request: Request) {
 
   const productRevenue = productRevenueAgg.map((r) => ({
     name: r.name,
+    image: typeof r.image === "string" ? r.image : "",
     price: r.price ?? 0,
     revenue: r.revenue,
     units: r.units,

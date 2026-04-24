@@ -25,7 +25,7 @@ export async function GET() {
     topProductsRaw,
     suppliedRows,
     soldRows,
-    productIds,
+    productsLite,
     recentSales,
   ] = await Promise.all([
     Sale.aggregate<{ revenue: number; count: number }>([
@@ -79,7 +79,7 @@ export async function GET() {
       { $unwind: "$items" },
       { $group: { _id: "$items.product", total: { $sum: "$items.quantity" } } },
     ]),
-    Product.find({}, { _id: 1 }).lean(),
+    Product.find({}, { _id: 1, name: 1, image: 1, sellingPrice: 1 }).lean(),
     Sale.find()
       .populate("waitress", "firstName lastName")
       .populate("tables", "number name")
@@ -102,19 +102,33 @@ export async function GET() {
   const suppliedMap = new Map(suppliedRows.map((r) => [r._id.toString(), r.total]));
   const soldMap = new Map(soldRows.map((r) => [r._id.toString(), r.total]));
   let lowStockCount = 0;
-  for (const p of productIds) {
+  const lowStockProducts: Array<{ id: string; name: string; image?: string; stock: number; sellingPrice: number }> =
+    [];
+  for (const p of productsLite) {
     const supplied = suppliedMap.get(p._id.toString()) ?? 0;
     const sold = soldMap.get(p._id.toString()) ?? 0;
-    if (supplied - sold < 5) lowStockCount++;
+    const stock = supplied - sold;
+    if (stock < 5) {
+      lowStockCount++;
+      lowStockProducts.push({
+        id: p._id.toString(),
+        name: (p as { name?: string }).name ?? "Produit",
+        image: (p as { image?: string }).image ?? "",
+        stock,
+        sellingPrice: Number((p as { sellingPrice?: number }).sellingPrice ?? 0),
+      });
+    }
   }
+  lowStockProducts.sort((a, b) => a.stock - b.stock || a.name.localeCompare(b.name, "fr"));
 
   return NextResponse.json({
     todayRevenue,
     todaySalesCount,
     lowStockCount,
-    totalProducts: productIds.length,
+    totalProducts: productsLite.length,
     weeklyRevenue,
     topProducts: topProductsRaw,
+    lowStockProducts: lowStockProducts.slice(0, 5),
     recentSales,
   });
 }

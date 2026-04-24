@@ -304,10 +304,10 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Settings2 className="w-4 h-4" />
-                Logo de l&apos;application
+                Nom & Logo de l&apos;application
               </CardTitle>
               <CardDescription>
-                Visualisez votre logo actuel et uploadez-en un nouveau.
+                Modifiez le nom, Visualisez votre logo actuel et uploadez-en un nouveau.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

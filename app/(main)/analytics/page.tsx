@@ -5,8 +5,9 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
-import { Download } from "lucide-react";
+import { Download, ImageIcon, ShoppingCart, TrendingUp, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { StatsCard } from "@/components/shared/StatsCard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,22 @@ async function fetchAnalytics(params: {
 
 function formatPercentage(value: number): string {
   return `${value.toFixed(1)}%`;
+}
+
+function ProductRowAvatar({ image }: { image?: string }) {
+  const [failed, setFailed] = useState(false);
+  const src = image?.trim() ?? "";
+  const showImg = Boolean(src) && !failed;
+
+  return (
+    <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+      {showImg ? (
+        <img src={src} alt="" className="size-full object-cover" onError={() => setFailed(true)} />
+      ) : (
+        <ImageIcon className="size-4 text-muted-foreground" aria-hidden />
+      )}
+    </div>
+  );
 }
 
 function buildAnalyticsSearchParams(params: {
@@ -262,54 +279,44 @@ export default function AnalyticsPage() {
         action={filtersAction}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Chiffre d&apos;affaires ({data?.period.label ?? "Période"})</CardDescription>
-            <CardTitle className="text-2xl">{isLoading ? "..." : formatCurrency(totalRevenue)}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Variation vs période précédente</p>
-            <Badge className="mt-2" variant={revenueDelta >= 0 ? "success" : "destructive"}>
-              {revenueDelta >= 0 ? "+" : ""}
-              {formatPercentage(revenueDelta)} vs période précédente
-            </Badge>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Bénéfice brut ({data?.period.label ?? "Période"})</CardDescription>
-            <CardTitle className="text-2xl">{isLoading ? "..." : formatCurrency(totalProfit)}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Variation vs période précédente</p>
-            <Badge className="mt-2" variant={profitDelta >= 0 ? "success" : "destructive"}>
-              {profitDelta >= 0 ? "+" : ""}
-              {formatPercentage(profitDelta)} vs période précédente
-            </Badge>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Taux de marge brut</CardDescription>
-            <CardTitle className="text-2xl">{isLoading ? "..." : formatPercentage(marginRate)}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Bénéfice brut / CA sur la période</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Ventes clôturées</CardDescription>
-            <CardTitle className="text-2xl">{isLoading ? "..." : totalSales}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Nombre total de ventes sur la période</p>
-          </CardContent>
-        </Card>
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
+        ) : (
+          <>
+            <StatsCard
+              title={`Chiffre d'affaires (${data?.period.label ?? "Période"})`}
+              value={formatCurrency(totalRevenue)}
+              trend={{ value: Number(revenueDelta.toFixed(1)), label: "" }}
+              icon={TrendingUp}
+              variant="dark"
+              index={0}
+            />
+            <StatsCard
+              title={`Bénéfice brut (${data?.period.label ?? "Période"})`}
+              value={formatCurrency(totalProfit)}
+              trend={{ value: Number(profitDelta.toFixed(1)), label: "" }}
+              icon={Wallet}
+              variant={profitDelta >= 0 ? "success" : "danger"}
+              index={1}
+            />
+            <StatsCard
+              title="Taux de marge brut"
+              value={formatPercentage(marginRate)}
+              subtitle="Bénéfice brut / CA sur la période"
+              icon={TrendingUp}
+              variant={marginRate >= 20 ? "success" : "warning"}
+              index={2}
+            />
+            <StatsCard
+              title="Ventes clôturées"
+              value={totalSales}
+              subtitle="Nombre total de ventes sur la période"
+              icon={ShoppingCart}
+              index={3}
+            />
+          </>
+        )}
       </div>
 
       {isLoading || !data ? (
@@ -361,7 +368,7 @@ export default function AnalyticsPage() {
                         Produit
                       </th>
                       <th className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Prix unitaire
+                        Prix unitaire SOBEBRA (FCFA)
                       </th>
                       <th className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         Unités vendues
@@ -379,11 +386,18 @@ export default function AnalyticsPage() {
                   </thead>
                   <tbody>
                     {products.map((product, index) => (
-                      <tr key={product.name} className="border-b transition-colors hover:bg-muted/30">
+                      <tr key={`${product.name}-${index}`} className="border-b transition-colors hover:bg-muted/30">
                         <td className="px-3 py-3 font-mono text-xs text-muted-foreground">
                           {String(index + 1).padStart(2, "0")}
                         </td>
-                        <td className="px-3 py-3 font-medium text-foreground">{product.name}</td>
+                        <td className="px-3 py-3">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <ProductRowAvatar image={product.image} />
+                            <span className="min-w-0 flex-1 truncate font-medium text-foreground" title={product.name}>
+                              {product.name}
+                            </span>
+                          </div>
+                        </td>
                         <td className="px-3 py-3 text-right text-muted-foreground">
                           {formatCurrency(product.price ?? 0)}
                         </td>

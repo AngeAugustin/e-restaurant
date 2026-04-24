@@ -4,6 +4,21 @@ import { requireAuth } from "@/lib/auth-middleware";
 import Waitress from "@/models/Waitress";
 import Sale from "@/models/Sale";
 
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
+  await connectDB();
+  const { id } = await params;
+
+  const waitress = await Waitress.findById(id);
+  if (!waitress) {
+    return NextResponse.json({ error: "Serveuse introuvable" }, { status: 404 });
+  }
+
+  return NextResponse.json(waitress);
+}
+
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAuth(["directeur"]);
   if (error) return error;

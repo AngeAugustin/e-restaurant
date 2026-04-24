@@ -63,102 +63,10 @@ function escapeHtml(s: string) {
     .replace(/"/g, "&quot;");
 }
 
-/**
- * WhatsApp — par ordre de priorité si configuré :
- * 1. Meta Cloud API (WHATSAPP_CLOUD_ACCESS_TOKEN, WHATSAPP_CLOUD_PHONE_NUMBER_ID)
- * 2. Twilio (TWILIO_*)
- * 3. CallMeBot (CALLMEBOT_API_KEY) — https://www.callmebot.com/
- *
- * Destinataire : WHATSAPP_ALERT_PHONE (indicatif pays + numéro, chiffres uniquement après nettoyage).
- */
-async function sendWhatsAppLowStock(productName: string, stock: number): Promise<void> {
-  const phone = process.env.WHATSAPP_ALERT_PHONE?.replace(/\D/g, "") ?? "";
-  const text = `e-Restaurant — Stock faible (≤5)\n${productName} : ${stock} unité(s) restantes après vente.`;
-
-  const cloudToken = process.env.WHATSAPP_CLOUD_ACCESS_TOKEN?.trim();
-  const cloudPhoneNumberId = process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID?.trim();
-  const cloudVersion = (process.env.WHATSAPP_CLOUD_API_VERSION ?? "v21.0").trim();
-
-  if (cloudToken && cloudPhoneNumberId && phone) {
-    const url = `https://graph.facebook.com/${cloudVersion}/${cloudPhoneNumberId}/messages`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${cloudToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: phone,
-        type: "text",
-        text: { preview_url: false, body: text },
-      }),
-    });
-    const raw = await res.text();
-    if (!res.ok) {
-      console.error("[stock-alerts] WhatsApp Cloud API HTTP", res.status, raw);
-    } else {
-      try {
-        const j = JSON.parse(raw) as { messages?: Array<{ id?: string }> };
-        const wamid = j.messages?.[0]?.id;
-        if (wamid) console.log("[stock-alerts] WhatsApp Cloud API message_id:", wamid);
-      } catch {
-        /* ignore */
-      }
-    }
-    return;
-  }
-
-  const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-  const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-  const twilioFrom = process.env.TWILIO_WHATSAPP_FROM;
-
-  if (twilioSid && twilioToken && twilioFrom && phone) {
-    const body = new URLSearchParams({
-      From: twilioFrom.startsWith("whatsapp:") ? twilioFrom : `whatsapp:${twilioFrom}`,
-      To: `whatsapp:+${phone}`,
-      Body: text,
-    });
-    const auth = Buffer.from(`${twilioSid}:${twilioToken}`).toString("base64");
-    const res = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${auth}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body,
-      }
-    );
-    if (!res.ok) {
-      console.error("[stock-alerts] Twilio WhatsApp:", await res.text());
-    }
-    return;
-  }
-
-  const callmeKey = process.env.CALLMEBOT_API_KEY;
-  if (callmeKey && phone) {
-    const url = new URL("https://api.callmebot.com/whatsapp.php");
-    url.searchParams.set("phone", phone);
-    url.searchParams.set("apikey", callmeKey);
-    url.searchParams.set("text", text);
-    const res = await fetch(url.toString());
-    if (!res.ok) {
-      console.error("[stock-alerts] CallMeBot:", await res.text());
-    }
-    return;
-  }
-
-  console.warn(
-    "[stock-alerts] WhatsApp non configuré : Cloud API (WHATSAPP_CLOUD_ACCESS_TOKEN + WHATSAPP_CLOUD_PHONE_NUMBER_ID + WHATSAPP_ALERT_PHONE), ou Twilio (TWILIO_*), ou CallMeBot (CALLMEBOT_API_KEY)."
-  );
-}
-
 const LOW_STOCK_MAX = STOCK_ALERT_LEVEL;
 
 /**
- * Après chaque vente clôturée : alerte si le stock du produit est ≤ 5 (y compris rupture à 0).
+ * Après chaque vente clôturée : alerte email (Resend) si le stock du produit est ≤ 5 (y compris rupture à 0).
  */
 export async function notifyLowStockAfterSaleIfNeeded(input: {
   productName: string;
@@ -169,8 +77,7 @@ export async function notifyLowStockAfterSaleIfNeeded(input: {
     return;
   }
 
-  await Promise.all([
-    sendResendLowStock(productName, stockAfterSale).catch((e) => console.error("[stock-alerts] email", e)),
-    sendWhatsAppLowStock(productName, stockAfterSale).catch((e) => console.error("[stock-alerts] whatsapp", e)),
-  ]);
+  await sendResendLowStock(productName, stockAfterSale).catch((e) =>
+    console.error("[stock-alerts] email", e)
+  );
 }

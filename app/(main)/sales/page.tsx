@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, ShoppingCart, TrendingUp, Clock, CheckCircle2, Eye, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -16,6 +16,15 @@ import { formatCurrency, formatDateTime } from "@/lib/utils";
 import type { ISale } from "@/types";
 import { formatSaleTablesLine } from "@/lib/sale-tables";
 import { CloseSaleDialog } from "@/components/sales/CloseSaleDialog";
+import { toast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 async function fetchSales(): Promise<ISale[]> {
   const res = await fetch("/api/sales");
@@ -25,7 +34,8 @@ async function fetchSales(): Promise<ISale[]> {
 
 // ----------- Main Page -----------
 export default function SalesPage() {
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+  const qc = useQueryClient();
   const { data: sales, isLoading } = useQuery({
     queryKey: ["sales"],
     queryFn: fetchSales,
@@ -33,18 +43,42 @@ export default function SalesPage() {
   });
 
   const [saleToClose, setSaleToClose] = useState<ISale | null>(null);
+  const [saleToCancel, setSaleToCancel] = useState<ISale | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
+
+  const cancelSale = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/sales/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Impossible d'annuler la commande");
+      }
+    },
+    onSuccess: () => {
+      toast({ variant: "success", title: "Commande annulée" });
+      qc.invalidateQueries({ queryKey: ["sales"] });
+      setSaleToCancel(null);
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: err.message });
+    },
+  });
 
   const totalRevenue = sales?.filter((s) => s.status === "COMPLETED").reduce((sum, s) => sum + s.totalAmount, 0) ?? 0;
   const totalSales = sales?.length ?? 0;
   const pendingSales = sales?.filter((s) => s.status === "PENDING").length ?? 0;
   const completedSales = sales?.filter((s) => s.status === "COMPLETED").length ?? 0;
-  const paginatedSales = (sales ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const totalPages = Math.max(1, Math.ceil((sales?.length ?? 0) / PAGE_SIZE));
+  const paginatedSales = (sales ?? []).slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.max(1, Math.ceil((sales?.length ?? 0) / pageSize));
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageSize]);
 
   return (
     <div>
@@ -81,6 +115,22 @@ export default function SalesPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.2 }}
       >
+        <div className="mb-3 flex justify-end">
+          <label className="inline-flex items-center gap-2 text-xs text-[#6B7280]">
+            Lignes par page
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value) as (typeof PAGE_SIZE_OPTIONS)[number])}
+              className="h-8 rounded-md border border-[#E5E7EB] bg-white px-2 text-xs text-[#0D0D0D] outline-none transition-colors focus:border-[#0D0D0D]"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Liste des ventes</CardTitle>
@@ -136,8 +186,20 @@ export default function SalesPage() {
                               {formatCurrency(sale.totalAmount)}
                             </td>
                             <td className="py-3.5 px-3 text-center">
-                              <Badge variant={sale.status === "COMPLETED" ? "success" : "pending"}>
-                                {sale.status === "COMPLETED" ? "Clôturée" : "En attente"}
+                              <Badge
+                                variant={
+                                  sale.status === "COMPLETED"
+                                    ? "success"
+                                    : sale.status === "CANCELLED"
+                                      ? "destructive"
+                                      : "pending"
+                                }
+                              >
+                                {sale.status === "COMPLETED"
+                                  ? "Clôturée"
+                                  : sale.status === "CANCELLED"
+                                    ? "Annulée"
+                                    : "En attente"}
                               </Badge>
                             </td>
                             <td className="py-3.5 px-3 text-right">
@@ -158,6 +220,14 @@ export default function SalesPage() {
                                     </Button>
                                     <Button size="sm" variant="default" onClick={() => setSaleToClose(sale)}>
                                       Clôturer
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="border-[#F2D7D7] text-red-600 hover:bg-red-50 hover:text-red-700"
+                                      onClick={() => setSaleToCancel(sale)}
+                                    >
+                                      Annuler
                                     </Button>
                                   </>
                                 )}
@@ -183,12 +253,39 @@ export default function SalesPage() {
       <PaginationControls
         className="mt-6"
         currentPage={currentPage}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         totalItems={sales?.length ?? 0}
         onPageChange={setCurrentPage}
       />
 
       <CloseSaleDialog sale={saleToClose} onClose={() => setSaleToClose(null)} />
+
+      <Dialog open={!!saleToCancel} onOpenChange={(open) => !open && setSaleToCancel(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Annuler cette commande ?</DialogTitle>
+            <DialogDescription>
+              Cette commande est en attente de clôture. En l&apos;annulant, elle sera supprimée définitivement.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setSaleToCancel(null)}>
+              Retour
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={cancelSale.isPending}
+              onClick={() => {
+                if (!saleToCancel?._id) return;
+                cancelSale.mutate(saleToCancel._id);
+              }}
+            >
+              {cancelSale.isPending ? "Annulation..." : "Confirmer l'annulation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

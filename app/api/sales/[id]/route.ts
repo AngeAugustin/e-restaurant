@@ -51,8 +51,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Vente introuvable" }, { status: 404 });
   }
 
-  if (sale.status === "COMPLETED") {
-    return NextResponse.json({ error: "Impossible de modifier une vente clôturée" }, { status: 400 });
+  if (sale.status !== "PENDING") {
+    return NextResponse.json({ error: "Seules les ventes en attente peuvent être modifiées" }, { status: 400 });
   }
 
   // Handle close/complete action
@@ -207,7 +207,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = await requireAuth(["directeur"]);
+  const { error } = await requireAuth(["directeur", "gerant"]);
   if (error) return error;
 
   await connectDB();
@@ -219,9 +219,13 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
 
   if (sale.status === "COMPLETED") {
-    return NextResponse.json({ error: "Impossible de supprimer une vente clôturée" }, { status: 400 });
+    return NextResponse.json({ error: "Impossible d'annuler une vente clôturée" }, { status: 400 });
+  }
+  if (sale.status === "CANCELLED") {
+    return NextResponse.json({ message: "Commande déjà annulée" });
   }
 
-  await sale.deleteOne();
-  return NextResponse.json({ message: "Vente supprimée" });
+  sale.status = "CANCELLED";
+  await sale.save();
+  return NextResponse.json({ message: "Commande annulée", sale });
 }

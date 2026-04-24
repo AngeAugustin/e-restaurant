@@ -222,7 +222,7 @@ function UserDialog({
 }
 
 export default function UsersPage() {
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
   const { data: session, status } = useSession();
   const qc = useQueryClient();
 
@@ -234,6 +234,7 @@ export default function UsersPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [editUser, setEditUser] = useState<IUser | undefined>();
   const [userToDelete, setUserToDelete] = useState<IUser | null>(null);
 
@@ -254,8 +255,8 @@ export default function UsersPage() {
   const totalUsers = users?.length ?? 0;
   const directors = users?.filter((u) => u.role === "directeur").length ?? 0;
   const managers = users?.filter((u) => u.role === "gerant").length ?? 0;
-  const paginatedUsers = (users ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const totalPages = Math.max(1, Math.ceil((users?.length ?? 0) / PAGE_SIZE));
+  const paginatedUsers = (users ?? []).slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.max(1, Math.ceil((users?.length ?? 0) / pageSize));
 
   const openCreate = () => { setEditUser(undefined); setDialogOpen(true); };
   const openEdit = (u: IUser) => { setEditUser(u); setDialogOpen(true); };
@@ -263,6 +264,10 @@ export default function UsersPage() {
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageSize]);
 
   if (status === "loading") return <Skeleton className="h-96" />;
   if (session?.user?.role !== "directeur") {
@@ -301,6 +306,22 @@ export default function UsersPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.2 }}
       >
+        <div className="mb-3 flex justify-end">
+          <label className="inline-flex items-center gap-2 text-xs text-[#6B7280]">
+            Cartes par page
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value) as (typeof PAGE_SIZE_OPTIONS)[number])}
+              className="h-8 rounded-md border border-[#E5E7EB] bg-white px-2 text-xs text-[#0D0D0D] outline-none transition-colors focus:border-[#0D0D0D]"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Liste des utilisateurs</CardTitle>
@@ -388,7 +409,7 @@ export default function UsersPage() {
       <PaginationControls
         className="mt-6"
         currentPage={currentPage}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         totalItems={users?.length ?? 0}
         onPageChange={setCurrentPage}
       />

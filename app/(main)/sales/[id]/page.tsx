@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   User,
@@ -23,6 +23,15 @@ import { formatSaleTablesLine } from "@/lib/sale-tables";
 import { ProductThumb } from "@/components/sales/ProductThumb";
 import { CloseSaleDialog } from "@/components/sales/CloseSaleDialog";
 import { SaleReceiptPreview } from "@/components/sales/SaleReceiptPreview";
+import { toast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 async function fetchSale(id: string): Promise<ISale> {
   const res = await fetch(`/api/sales/${id}`);
@@ -32,12 +41,35 @@ async function fetchSale(id: string): Promise<ISale> {
 
 export default function SaleDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const qc = useQueryClient();
   const [saleForClose, setSaleForClose] = useState<ISale | null>(null);
+  const [saleToCancel, setSaleToCancel] = useState<ISale | null>(null);
 
   const { data: sale, isLoading, isError } = useQuery({
     queryKey: ["sale", id],
     queryFn: () => fetchSale(id),
     enabled: Boolean(id),
+  });
+
+  const cancelSale = useMutation({
+    mutationFn: async (saleId: string) => {
+      const res = await fetch(`/api/sales/${saleId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Impossible d'annuler la commande");
+      }
+    },
+    onSuccess: async () => {
+      toast({ variant: "success", title: "Commande annulée" });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["sales"] }),
+        qc.invalidateQueries({ queryKey: ["sale", id] }),
+      ]);
+      setSaleToCancel(null);
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: err.message });
+    },
   });
 
   if (isLoading) {
@@ -95,8 +127,20 @@ export default function SaleDetailPage() {
               <div>
                 <div className="flex flex-wrap items-center gap-3">
                   <h1 className="text-2xl font-semibold text-[#0D0D0D]">Détail de la vente</h1>
-                  <Badge variant={sale.status === "COMPLETED" ? "success" : "pending"}>
-                    {sale.status === "COMPLETED" ? "Clôturée" : "En attente"}
+                  <Badge
+                    variant={
+                      sale.status === "COMPLETED"
+                        ? "success"
+                        : sale.status === "CANCELLED"
+                          ? "destructive"
+                          : "pending"
+                    }
+                  >
+                    {sale.status === "COMPLETED"
+                      ? "Clôturée"
+                      : sale.status === "CANCELLED"
+                        ? "Annulée"
+                        : "En attente"}
                   </Badge>
                 </div>
                 <p className="mt-2 flex items-center gap-2 text-sm text-[#6B7280]">
@@ -110,6 +154,13 @@ export default function SaleDetailPage() {
                     <Link href={`/sales/${id}/edit`}>Modifier</Link>
                   </Button>
                   <Button onClick={() => setSaleForClose(sale)}>Clôturer la vente</Button>
+                  <Button
+                    variant="outline"
+                    className="border-[#F2D7D7] text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={() => setSaleToCancel(sale)}
+                  >
+                    Annuler
+                  </Button>
                 </div>
               )}
             </div>
@@ -120,24 +171,27 @@ export default function SaleDetailPage() {
             <CardTitle className="text-base">Service</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F5F5F5]">
-                <User className="w-4 h-4 text-[#0D0D0D]" />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F5F5F5]">
+                  <User className="w-4 h-4 text-[#0D0D0D]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-[#9CA3AF]">Serveuse</p>
+                  <p className="truncate font-medium text-[#0D0D0D]">
+                    {waitress?.firstName} {waitress?.lastName}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-[#9CA3AF]">Serveuse</p>
-                <p className="font-medium text-[#0D0D0D]">
-                  {waitress?.firstName} {waitress?.lastName}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F5F5F5]">
-                <UtensilsCrossed className="w-4 h-4 text-[#0D0D0D]" />
-              </div>
-              <div>
-                <p className="text-xs text-[#9CA3AF]">{tablesHeading}</p>
-                <p className="font-medium text-[#0D0D0D]">{tablesLine}</p>
+              <div className="hidden h-10 w-px shrink-0 bg-[#E5E5E5] sm:block" />
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F5F5F5]">
+                  <UtensilsCrossed className="w-4 h-4 text-[#0D0D0D]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-[#9CA3AF]">{tablesHeading}</p>
+                  <p className="truncate font-medium text-[#0D0D0D]">{tablesLine}</p>
+                </div>
               </div>
             </div>
             {(createdBy?.firstName || createdBy?.lastName) && (
@@ -237,6 +291,33 @@ export default function SaleDetailPage() {
       </div>
 
       <CloseSaleDialog sale={saleForClose} onClose={() => setSaleForClose(null)} />
+      <Dialog open={!!saleToCancel} onOpenChange={(open) => !open && setSaleToCancel(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Annuler cette commande ?</DialogTitle>
+            <DialogDescription>
+              Cette commande est en attente de clôture. En l&apos;annulant, elle reste visible dans la liste avec le
+              statut <span className="font-medium text-[#0D0D0D]">Annulée</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setSaleToCancel(null)}>
+              Retour
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={cancelSale.isPending}
+              onClick={() => {
+                if (!saleToCancel?._id) return;
+                cancelSale.mutate(saleToCancel._id);
+              }}
+            >
+              {cancelSale.isPending ? "Annulation..." : "Confirmer l'annulation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

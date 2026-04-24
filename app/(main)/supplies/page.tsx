@@ -460,7 +460,7 @@ function SupplyDialog({
 }
 
 export default function SuppliesPage() {
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
   const { data: session } = useSession();
   const isDirector = session?.user?.role === "directeur";
   const qc = useQueryClient();
@@ -470,6 +470,7 @@ export default function SuppliesPage() {
   });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [editSupply, setEditSupply] = useState<ISupply | null>(null);
   const [supplyToDelete, setSupplyToDelete] = useState<ISupply | null>(null);
 
@@ -509,12 +510,16 @@ export default function SuppliesPage() {
   const totalUnits = supplies?.reduce((s, a) => s + a.totalUnits, 0) ?? 0;
   const totalCost = supplies?.reduce((s, a) => s + a.totalCost, 0) ?? 0;
   const lastSupply = supplies?.[0];
-  const paginatedSupplies = (supplies ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const totalPages = Math.max(1, Math.ceil((supplies?.length ?? 0) / PAGE_SIZE));
+  const paginatedSupplies = (supplies ?? []).slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.max(1, Math.ceil((supplies?.length ?? 0) / pageSize));
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageSize]);
 
   return (
     <div>
@@ -554,6 +559,22 @@ export default function SuppliesPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.2 }}
       >
+        <div className="mb-3 flex justify-end">
+          <label className="inline-flex items-center gap-2 text-xs text-[#6B7280]">
+            Lignes par page
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value) as (typeof PAGE_SIZE_OPTIONS)[number])}
+              className="h-8 rounded-md border border-[#E5E7EB] bg-white px-2 text-xs text-[#0D0D0D] outline-none transition-colors focus:border-[#0D0D0D]"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Historique des approvisionnements</CardTitle>
@@ -652,7 +673,7 @@ export default function SuppliesPage() {
       <PaginationControls
         className="mt-6"
         currentPage={currentPage}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         totalItems={supplies?.length ?? 0}
         onPageChange={setCurrentPage}
       />

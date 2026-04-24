@@ -18,9 +18,12 @@ import {
   BarChart3,
   LogOut,
   Settings2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useSidebarLayout } from "@/components/shared/sidebar-layout-context";
 import { DEFAULT_LOGO_URL, DEFAULT_SOLUTION_NAME } from "@/lib/app-settings";
 import {
   Dialog,
@@ -46,6 +49,7 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { collapsed, toggleCollapsed } = useSidebarLayout();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const role = session?.user?.role ?? "";
   const name = session?.user?.name ?? "";
@@ -65,47 +69,78 @@ export function Sidebar() {
   const visibleItems = navItems.filter((item) => item.roles.includes(role));
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-primary text-primary-foreground fixed left-0 top-0 bottom-0 z-40">
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
+    <aside
+      className={cn(
+        "fixed bottom-0 left-0 top-0 z-40 hidden min-h-screen flex-col bg-primary text-primary-foreground transition-[width] duration-200 ease-out lg:flex",
+        collapsed ? "w-[4.5rem]" : "w-64"
+      )}
+    >
+      {/* Logo + repli */}
+      <div
+        className={cn(
+          "border-b border-white/10",
+          collapsed ? "flex flex-col items-center gap-2 px-2 py-3" : "flex items-center gap-2 px-4 py-4"
+        )}
+      >
         <Image
           src={logoSrc}
           alt="Logo Rehoboth - Fleur de Dieu"
           width={40}
           height={40}
-          className="h-10 w-10 rounded-full object-contain bg-white"
+          className={cn("rounded-full bg-white object-contain", collapsed ? "h-9 w-9" : "h-10 w-10")}
           priority
         />
-        <div>
-          <p className="font-semibold text-sm leading-tight">{solutionName}</p>
-          <p className="text-[10px] text-white/40 leading-tight">Bar Restaurant</p>
-        </div>
+        {!collapsed && (
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold leading-tight">{solutionName}</p>
+            <p className="text-[10px] leading-tight text-white/40">Bar Restaurant</p>
+          </div>
+        )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={toggleCollapsed}
+          className={cn(
+            "h-9 w-9 shrink-0 text-white/70 hover:bg-white/10 hover:text-white",
+            collapsed ? "" : "ml-auto"
+          )}
+          aria-label={collapsed ? "Déplier le menu" : "Replier le menu"}
+          title={collapsed ? "Déplier le menu" : "Replier le menu"}
+        >
+          {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+        </Button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav className={cn("flex-1 space-y-0.5 overflow-y-auto py-4", collapsed ? "px-2" : "px-3")}>
         {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
 
           return (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={item.href} title={collapsed ? item.label : undefined}>
               <motion.div
-                whileHover={{ x: 2 }}
+                whileHover={collapsed ? undefined : { x: 2 }}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer",
+                  "flex cursor-pointer items-center rounded-lg text-sm font-medium transition-all duration-150",
+                  collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
                   isActive
                     ? "bg-white text-primary"
-                    : "text-primary-foreground/60 hover:text-primary-foreground hover:bg-white/10"
+                    : "text-primary-foreground/60 hover:bg-white/10 hover:text-primary-foreground"
                 )}
               >
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                <span>{item.label}</span>
-                {isActive && (
-                  <motion.div
-                    layoutId="sidebar-indicator"
-                    className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"
-                  />
+                <Icon className="size-4 shrink-0" />
+                {!collapsed && (
+                  <>
+                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="sidebar-indicator"
+                        className="ml-auto size-1.5 shrink-0 rounded-full bg-primary"
+                      />
+                    )}
+                  </>
                 )}
               </motion.div>
             </Link>
@@ -114,25 +149,33 @@ export function Sidebar() {
       </nav>
 
       {/* User + Logout */}
-      <div className="px-3 py-4 border-t border-white/10">
-        <div className="flex items-center gap-2 px-3 py-2">
-          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-semibold text-white flex-shrink-0">
+      <div className={cn("border-t border-white/10 py-4", collapsed ? "px-2" : "px-3")}>
+        <div
+          className={cn(
+            "flex items-center py-2",
+            collapsed ? "flex-col gap-2 px-0" : "gap-2 px-3",
+            !collapsed && "justify-between"
+          )}
+        >
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white">
             {getInitials(firstName ?? "U", lastName ?? "")}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-white truncate">{name}</p>
-            <p className="text-[10px] text-white/40 capitalize">{role}</p>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-white">{name}</p>
+              <p className="text-[10px] capitalize text-white/40">{role}</p>
+            </div>
+          )}
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="h-9 w-9 flex-shrink-0 text-white/60 hover:text-white hover:bg-white/10"
+            className="h-9 w-9 shrink-0 text-white/60 hover:bg-white/10 hover:text-white"
             aria-label="Se déconnecter"
             title="Se déconnecter"
             onClick={() => setLogoutOpen(true)}
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="size-4" />
           </Button>
         </div>
       </div>

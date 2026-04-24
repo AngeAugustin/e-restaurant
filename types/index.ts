@@ -46,7 +46,7 @@ export interface ISaleItem {
   total: number;
 }
 
-export type SaleStatus = "PENDING" | "COMPLETED";
+export type SaleStatus = "PENDING" | "COMPLETED" | "CANCELLED";
 
 /** Renseigné à la clôture de la vente */
 export type SalePaymentMethod = "CASH" | "MOBILE_MONEY";
@@ -97,6 +97,7 @@ export interface DashboardStats {
   totalProducts: number;
   weeklyRevenue: { date: string; revenue: number }[];
   topProducts: { name: string; sold: number; revenue: number }[];
+  lowStockProducts: { id: string; name: string; image?: string; stock: number; sellingPrice: number }[];
   recentSales: ISale[];
 }
 
@@ -125,7 +126,14 @@ export interface AnalyticsData {
     marginRate: number;
     sales: number;
   }[];
-  productRevenue: { name: string; price: number; revenue: number; units: number; margin: number }[];
+  productRevenue: {
+    name: string;
+    image?: string;
+    price: number;
+    revenue: number;
+    units: number;
+    margin: number;
+  }[];
   categoryDistribution: { name: string; value: number }[];
   topProductsRadar: { product: string; sales: number; revenue: number; stock: number }[];
 }
