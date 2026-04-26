@@ -17,7 +17,7 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
+        sans: ["var(--font-aptos)", "Aptos", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

@@ -2,7 +2,7 @@ import Product from "@/models/Product";
 import Supply from "@/models/Supply";
 
 export interface SaleLinePricing {
-  /** Prix unitaire marché : `marketSellingPrice` du dernier appro, sinon `sellingPrice` du produit */
+  /** Prix unitaire marché : dernier appro, sinon `defaultMarketSellingPrice`, sinon `sellingPrice` (SOBEBRA) */
   unitPrice: number;
   /** Coût d'achat réel unitaire : `totalCost / totalUnits` du dernier appro, sinon 0 */
   unitCost: number;
@@ -18,8 +18,14 @@ export async function resolveSaleLinePricing(productId: string): Promise<SaleLin
     .select("marketSellingPrice totalCost totalUnits")
     .lean<{ marketSellingPrice: number; totalCost: number; totalUnits: number } | null>();
 
-  const product = await Product.findById(productId).select("sellingPrice").lean<{ sellingPrice: number } | null>();
-  const fallbackPrice = product?.sellingPrice ?? 0;
+  const product = await Product.findById(productId)
+    .select("sellingPrice defaultMarketSellingPrice")
+    .lean<{ sellingPrice: number; defaultMarketSellingPrice?: number } | null>();
+
+  const fallbackPrice =
+    product?.defaultMarketSellingPrice != null && Number.isFinite(product.defaultMarketSellingPrice)
+      ? product.defaultMarketSellingPrice
+      : (product?.sellingPrice ?? 0);
 
   if (!latest || !latest.totalUnits || latest.totalUnits <= 0) {
     return { unitPrice: fallbackPrice, unitCost: 0 };

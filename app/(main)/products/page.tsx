@@ -45,6 +45,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { DEFAULT_PRODUCT_CATEGORY, PRODUCT_CATEGORIES } from "@/lib/product-categories";
+import { DEFAULT_LOW_STOCK_ALERT_THRESHOLD } from "@/lib/app-settings";
 
 interface ProductWithStock {
   _id: string;
@@ -52,6 +53,7 @@ interface ProductWithStock {
   category?: string;
   image?: string;
   sellingPrice: number;
+  defaultMarketSellingPrice?: number;
   stock: number;
 }
 
@@ -87,6 +89,7 @@ interface ProductFormData {
   category: string;
   image: string;
   sellingPrice: string;
+  defaultMarketSellingPrice: string;
 }
 
 function ProductFormDialog({
@@ -105,6 +108,7 @@ function ProductFormDialog({
     category: DEFAULT_PRODUCT_CATEGORY,
     image: "",
     sellingPrice: "",
+    defaultMarketSellingPrice: "",
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -117,6 +121,10 @@ function ProductFormDialog({
       category: product?.category ?? DEFAULT_PRODUCT_CATEGORY,
       image: product?.image ?? "",
       sellingPrice: product?.sellingPrice?.toString() ?? "",
+      defaultMarketSellingPrice:
+        product?.defaultMarketSellingPrice != null
+          ? String(product.defaultMarketSellingPrice)
+          : "",
     });
     setImageFile(null);
     setPreviewUrl((prev) => {
@@ -190,15 +198,55 @@ function ProductFormDialog({
     const url = product ? `/api/products/${product._id}` : "/api/products";
     const method = product ? "PUT" : "POST";
 
+    const sobebra = parseFloat(form.sellingPrice);
+    if (!Number.isFinite(sobebra) || sobebra < 0) {
+      setIsSubmitting(false);
+      toast({
+        variant: "destructive",
+        title: "Prix invalide",
+        description: "Le prix SOBEBRA doit être un nombre positif.",
+      });
+      return;
+    }
+
+    const trimmedMarket = form.defaultMarketSellingPrice.trim();
+    const body: Record<string, unknown> = {
+      name: form.name,
+      category: form.category,
+      image: imageUrl,
+      sellingPrice: sobebra,
+    };
+
+    if (!product) {
+      const marketDef = parseFloat(trimmedMarket);
+      if (!trimmedMarket || !Number.isFinite(marketDef) || marketDef <= sobebra) {
+        setIsSubmitting(false);
+        toast({
+          variant: "destructive",
+          title: "Prix invalides",
+          description: "Le prix de vente marché doit être strictement supérieur au prix SOBEBRA.",
+        });
+        return;
+      }
+      body.defaultMarketSellingPrice = marketDef;
+    } else if (trimmedMarket !== "") {
+      const marketDef = parseFloat(trimmedMarket);
+      if (!Number.isFinite(marketDef) || marketDef <= sobebra) {
+        setIsSubmitting(false);
+        toast({
+          variant: "destructive",
+          title: "Prix invalides",
+          description: "Le prix de vente marché doit être strictement supérieur au prix SOBEBRA.",
+        });
+        return;
+      }
+      body.defaultMarketSellingPrice = marketDef;
+    }
+
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name,
-        category: form.category,
-        image: imageUrl,
-        sellingPrice: parseFloat(form.sellingPrice),
-      }),
+      body: JSON.stringify(body),
     });
 
     setIsSubmitting(false);
@@ -216,6 +264,8 @@ function ProductFormDialog({
     });
 
     qc.invalidateQueries({ queryKey: ["products"] });
+    qc.invalidateQueries({ queryKey: ["products-list"] });
+    qc.invalidateQueries({ queryKey: ["products-stock"] });
     onClose();
   };
 
@@ -223,7 +273,7 @@ function ProductFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{product ? "Modifier le produit" : "Nouveau produit"}</DialogTitle>
         </DialogHeader>
@@ -294,6 +344,22 @@ function ProductFormDialog({
               required
               min={0}
             />
+            <p className="text-[11px] text-[#9CA3AF]">Prix catalogue de référence (toujours inférieur au prix marché).</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Prix de vente unitaire marché (FCFA)</Label>
+            <Input
+              type="number"
+              placeholder="2000"
+              value={form.defaultMarketSellingPrice}
+              onChange={(e) => setForm({ ...form, defaultMarketSellingPrice: e.target.value })}
+              required={!product}
+              min={0}
+            />
+            <p className="text-[11px] text-[#9CA3AF]">
+              Valeur proposée par défaut à l&apos;approvisionnement (modifiable sur chaque lot). Doit être
+              strictement supérieur au prix SOBEBRA.
+            </p>
           </div>
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
@@ -601,6 +667,19 @@ export default function ProductsPage() {
     queryFn: fetchProducts,
   });
 
+  const { data: appSettings } = useQuery({
+    queryKey: ["app-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings");
+      if (!res.ok) throw new Error("settings");
+      return (await res.json()) as { lowStockAlertThreshold?: number };
+    },
+  });
+  const lowStockThreshold =
+    typeof appSettings?.lowStockAlertThreshold === "number"
+      ? appSettings.lowStockAlertThreshold
+      : DEFAULT_LOW_STOCK_ALERT_THRESHOLD;
+
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [priceMinFilter, setPriceMinFilter] = useState("");
@@ -651,7 +730,7 @@ export default function ProductsPage() {
 
   const totalProducts = products?.length ?? 0;
   const totalStock = products?.reduce((s, p) => s + p.stock, 0) ?? 0;
-  const lowStockCount = products?.filter((p) => p.stock < 5).length ?? 0;
+  const lowStockCount = products?.filter((p) => p.stock <= lowStockThreshold).length ?? 0;
   const outOfStock = products?.filter((p) => p.stock === 0).length ?? 0;
 
   const openCreate = () => { setEditProduct(undefined); setDialogOpen(true); };
@@ -822,7 +901,11 @@ export default function ProductsPage() {
                   <div className="flex items-center justify-between mt-2">
                     <Badge
                       variant={
-                        product.stock === 0 ? "destructive" : product.stock < 5 ? "warning" : "success"
+                        product.stock === 0
+                          ? "destructive"
+                          : product.stock <= lowStockThreshold
+                            ? "warning"
+                            : "success"
                       }
                     >
                       {product.stock} unités

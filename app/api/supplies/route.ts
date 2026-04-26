@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth-middleware";
 import { isStandardSupplyLotSize } from "@/lib/supply-lot-sizes";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
+import { marketPriceAboveCatalogError } from "@/lib/product-market-price";
 
 export async function GET() {
   const { error } = await requireAuth();
@@ -11,7 +12,7 @@ export async function GET() {
 
   await connectDB();
   const supplies = await Supply.find()
-    .populate("product", "name image sellingPrice")
+    .populate("product", "name image sellingPrice defaultMarketSellingPrice")
     .populate("createdBy", "firstName lastName")
     .sort({ createdAt: -1 });
 
@@ -92,6 +93,11 @@ export async function POST(req: NextRequest) {
           );
         }
 
+        const priceErr = marketPriceAboveCatalogError(Number(product.sellingPrice), item.marketSellingPrice);
+        if (priceErr) {
+          return NextResponse.json({ error: `${priceErr} (produit ${product.name})` }, { status: 400 });
+        }
+
         const totalUnits = item.lotSize * item.numberOfLots;
         const totalCost = item.lotPrice * item.numberOfLots;
 
@@ -107,11 +113,7 @@ export async function POST(req: NextRequest) {
         });
         await supply.save();
 
-        await Product.findByIdAndUpdate(item.productId, {
-          sellingPrice: item.marketSellingPrice,
-        });
-
-        await supply.populate("product", "name image sellingPrice");
+        await supply.populate("product", "name image sellingPrice defaultMarketSellingPrice");
         await supply.populate("createdBy", "firstName lastName");
         created.push(supply.toJSON());
       }
@@ -138,10 +140,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
   }
 
+  const priceErr = marketPriceAboveCatalogError(Number(product.sellingPrice), Number(marketSellingPrice));
+  if (priceErr) {
+    return NextResponse.json({ error: priceErr }, { status: 400 });
+  }
+
   const ls = Number(lotSize);
   if (!isStandardSupplyLotSize(ls)) {
     return NextResponse.json(
-      { error: "Taille du lot invalide : choisir 3, 6, 12 ou 24 unités" },
+      { error: "Taille du casier invalide : choisir 6, 12 ou 24 unités" },
       { status: 400 }
     );
   }
@@ -162,9 +169,7 @@ export async function POST(req: NextRequest) {
 
   await supply.save();
 
-  await Product.findByIdAndUpdate(productId, { sellingPrice: Number(marketSellingPrice) });
-
-  await supply.populate("product", "name image sellingPrice");
+  await supply.populate("product", "name image sellingPrice defaultMarketSellingPrice");
   await supply.populate("createdBy", "firstName lastName");
 
   return NextResponse.json(supply, { status: 201 });

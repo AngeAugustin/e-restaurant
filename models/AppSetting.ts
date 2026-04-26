@@ -1,6 +1,7 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 import {
   DEFAULT_LOGO_URL,
+  DEFAULT_LOW_STOCK_ALERT_THRESHOLD,
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_SOLUTION_NAME,
   GLOBAL_SETTINGS_KEY,
@@ -12,6 +13,7 @@ export interface IAppSettingDocument extends Document {
   logoUrl: string;
   solutionName: string;
   lowStockAlertEmails: string[];
+  lowStockAlertThreshold: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +47,12 @@ const AppSettingSchema = new Schema<IAppSettingDocument>(
       type: [String],
       default: [],
     },
+    lowStockAlertThreshold: {
+      type: Number,
+      default: DEFAULT_LOW_STOCK_ALERT_THRESHOLD,
+      min: 0,
+      max: 999,
+    },
   },
   { timestamps: true }
 );
@@ -71,6 +79,16 @@ if (existingModel) {
         default: DEFAULT_SOLUTION_NAME,
         trim: true,
         maxlength: 80,
+      },
+    });
+  }
+  if (!existingModel.schema.path("lowStockAlertThreshold")) {
+    existingModel.schema.add({
+      lowStockAlertThreshold: {
+        type: Number,
+        default: DEFAULT_LOW_STOCK_ALERT_THRESHOLD,
+        min: 0,
+        max: 999,
       },
     });
   }

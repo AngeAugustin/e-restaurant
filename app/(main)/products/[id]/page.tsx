@@ -18,6 +18,7 @@ interface ProductDetail {
     name: string;
     image?: string;
     sellingPrice: number;
+    defaultMarketSellingPrice?: number;
     stock: number;
   };
   supplies: Array<{
@@ -105,15 +106,30 @@ export default function ProductDetailPage() {
                 )}
               </div>
               <h2 className="font-semibold text-[#0D0D0D] text-lg">{product.name}</h2>
-              <p className="text-2xl font-bold text-[#0D0D0D] mt-1">
-                {formatCurrency(supplies[0]?.marketSellingPrice ?? product.sellingPrice)}
+              <p className="mt-1 text-2xl font-bold text-[#0D0D0D]">
+                {formatCurrency(
+                  supplies[0]?.marketSellingPrice ??
+                    product.defaultMarketSellingPrice ??
+                    product.sellingPrice
+                )}
               </p>
               <p className="text-sm text-[#6B7280]">
-                Prix marché (dernier appro){supplies[0] ? "" : " — prix catalogue"}
+                {supplies[0]
+                  ? "Prix vente marché (dernier approvisionnement)"
+                  : product.defaultMarketSellingPrice != null
+                    ? "Prix vente marché par défaut (fiche produit)"
+                    : "Prix catalogue SOBEBRA"}
               </p>
-              {supplies[0] && supplies[0].marketSellingPrice !== product.sellingPrice && (
-                <p className="text-xs text-[#9CA3AF] mt-1">
-                  Prix catalogue fiche produit : {formatCurrency(product.sellingPrice)}
+              <p className="mt-2 text-xs text-[#6B7280]">
+                Prix SOBEBRA (catalogue) :{" "}
+                <span className="font-medium text-[#0D0D0D]">{formatCurrency(product.sellingPrice)}</span>
+              </p>
+              {product.defaultMarketSellingPrice != null && (
+                <p className="mt-1 text-xs text-[#6B7280]">
+                  Prix marché par défaut à l&apos;appro :{" "}
+                  <span className="font-medium text-[#0D0D0D]">
+                    {formatCurrency(product.defaultMarketSellingPrice)}
+                  </span>
                 </p>
               )}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
@@ -11,9 +11,8 @@ import { PaginationControls } from "@/components/shared/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PremiumTableShell, premiumTableSelectClass } from "@/components/shared/PremiumTableShell";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +36,9 @@ import type { ISupply } from "@/types";
 interface ProductOption {
   _id: string;
   name: string;
+  image?: string;
   sellingPrice: number;
+  defaultMarketSellingPrice?: number;
 }
 
 async function fetchSupplies(): Promise<ISupply[]> {
@@ -75,20 +76,25 @@ const newDraftLine = (): SupplyDraftLine => ({
   ...emptyForm(),
 });
 
-function isLineComplete(line: SupplyForm): boolean {
+function isLineComplete(line: SupplyForm, products: ProductOption[] | undefined): boolean {
   if (!line.productId) return false;
   const lotPrice = parseFloat(line.lotPrice);
   const numberOfLots = parseInt(line.numberOfLots, 10);
   const marketSellingPrice = parseFloat(line.marketSellingPrice);
-  return (
-    isValidLotSizeChoice(line.lotSize) &&
-    Number.isFinite(lotPrice) &&
-    lotPrice >= 0 &&
-    Number.isFinite(numberOfLots) &&
-    numberOfLots >= 1 &&
-    Number.isFinite(marketSellingPrice) &&
-    marketSellingPrice >= 0
-  );
+  const sobebra = products?.find((p) => p._id === line.productId)?.sellingPrice;
+  if (sobebra === undefined || !Number.isFinite(sobebra)) return false;
+  if (
+    !isValidLotSizeChoice(line.lotSize) ||
+    !Number.isFinite(lotPrice) ||
+    lotPrice < 0 ||
+    !Number.isFinite(numberOfLots) ||
+    numberOfLots < 1 ||
+    !Number.isFinite(marketSellingPrice) ||
+    marketSellingPrice <= sobebra
+  ) {
+    return false;
+  }
+  return true;
 }
 
 function linePayload(line: SupplyForm) {
@@ -101,11 +107,57 @@ function linePayload(line: SupplyForm) {
   };
 }
 
+/** Données pour le récap « casiers / taille / prix / total » sur une ligne d’appro */
+function supplyLineRecapValues(line: SupplyForm) {
+  const nbCasiers = parseInt(line.numberOfLots, 10);
+  const taille = parseInt(line.lotSize, 10);
+  const prixCasier = parseFloat(line.lotPrice);
+  const nOk = Number.isFinite(nbCasiers) && nbCasiers >= 1;
+  const tOk = Number.isFinite(taille) && taille >= 1;
+  const pOk = Number.isFinite(prixCasier) && prixCasier >= 0;
+  return {
+    nbCasiers: nOk ? nbCasiers : null,
+    taille: tOk ? taille : null,
+    prixCasier: pOk ? prixCasier : null,
+    montantCasiers: nOk && pOk ? nbCasiers * prixCasier : null,
+    totalUnites: nOk && tOk ? nbCasiers * taille : null,
+  };
+}
+
 function productIdFromSupply(s: ISupply): string {
   const p = s.product;
   if (typeof p === "string") return p;
   if (p && typeof p === "object" && "_id" in p) return String((p as { _id: string })._id);
   return "";
+}
+
+/** Aperçu image dans le modal appro : remplit la colonne (hauteur des champs), recouvre en object-cover */
+function SupplyLineProductImage({ imageUrl, label }: { imageUrl?: string; label: string }) {
+  const [broken, setBroken] = useState(false);
+  const onError = useCallback(() => setBroken(true), []);
+
+  useEffect(() => {
+    setBroken(false);
+  }, [imageUrl]);
+
+  return (
+    <div className="relative min-h-[7.5rem] flex-1 overflow-hidden rounded-xl border border-[#E5E5E5] bg-[#F3F4F6]">
+      {imageUrl && !broken ? (
+        <img
+          src={imageUrl}
+          alt={label}
+          className="absolute inset-0 h-full w-full object-cover"
+          onError={onError}
+        />
+      ) : null}
+      {(!imageUrl || broken) && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-2 text-center">
+          <Package className="h-8 w-8 text-[#D1D5DB]" aria-hidden />
+          <span className="text-[10px] font-medium text-[#9CA3AF]">Sans image</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function SupplyDialog({
@@ -158,7 +210,7 @@ function SupplyDialog({
 
   const createTotals = lines.reduce(
     (acc, line) => {
-      if (!isLineComplete(line)) return acc;
+      if (!isLineComplete(line, products)) return acc;
       const u = parseInt(line.lotSize, 10) * parseInt(line.numberOfLots, 10);
       const c = parseFloat(line.lotPrice) * parseInt(line.numberOfLots, 10);
       return { units: acc.units + u, cost: acc.cost + c };
@@ -166,15 +218,8 @@ function SupplyDialog({
     { units: 0, cost: 0 }
   );
 
-  const editTotalUnits =
-    form.lotSize && form.numberOfLots ? parseInt(form.lotSize, 10) * parseInt(form.numberOfLots, 10) : 0;
-  const editTotalCost =
-    form.lotPrice && form.numberOfLots
-      ? parseFloat(form.lotPrice) * parseInt(form.numberOfLots, 10)
-      : 0;
-
   const createSubmitDisabled =
-    isSubmitting || lines.length === 0 || lines.some((l) => !isLineComplete(l));
+    isSubmitting || lines.length === 0 || lines.some((l) => !isLineComplete(l, products));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,7 +284,17 @@ function SupplyDialog({
             <>
               <div className="space-y-1.5">
                 <Label>Produit</Label>
-                <Select value={form.productId} onValueChange={(v) => setForm({ ...form, productId: v })}>
+                <Select
+                  value={form.productId}
+                  onValueChange={(v) => {
+                    const p = products?.find((x) => x._id === v);
+                    const pref =
+                      p?.defaultMarketSellingPrice != null && Number.isFinite(p.defaultMarketSellingPrice)
+                        ? String(p.defaultMarketSellingPrice)
+                        : "";
+                    setForm({ ...form, productId: v, marketSellingPrice: pref });
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un produit" />
                   </SelectTrigger>
@@ -255,7 +310,7 @@ function SupplyDialog({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Taille du lot (unités)</Label>
+                  <Label>Taille du casier (unités)</Label>
                   <Select
                     value={form.lotSize === "" ? undefined : form.lotSize}
                     onValueChange={(v) => setForm({ ...form, lotSize: v })}
@@ -273,7 +328,7 @@ function SupplyDialog({
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Prix du lot (FCFA)</Label>
+                  <Label>Prix du casier (FCFA)</Label>
                   <Input
                     type="number"
                     placeholder="5000"
@@ -287,7 +342,7 @@ function SupplyDialog({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Nombre de lots</Label>
+                  <Label>Nombre de casiers</Label>
                   <Input
                     type="number"
                     placeholder="4"
@@ -301,125 +356,209 @@ function SupplyDialog({
                   <Label>Prix vente marché (FCFA)</Label>
                   <Input
                     type="number"
-                    placeholder="1500"
+                    placeholder="Prix fiche produit"
                     value={form.marketSellingPrice}
                     onChange={(e) => setForm({ ...form, marketSellingPrice: e.target.value })}
                     required
                     min={0}
                   />
+                  <p className="text-[10px] text-[#9CA3AF]">Strictement supérieur au prix SOBEBRA du produit.</p>
                 </div>
               </div>
 
-              {editTotalUnits > 0 && (
-                <div className="space-y-1 rounded-lg bg-[#F5F5F5] p-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#6B7280]">Total unités</span>
-                    <span className="font-semibold text-[#0D0D0D]">{editTotalUnits} unités</span>
+              {(() => {
+                const recapEdit = supplyLineRecapValues(form);
+                return (
+                  <div className="rounded-lg border border-[#E5E5E5] bg-white/80 px-3 py-2.5">
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+                      Récapitulatif
+                    </p>
+                    <p className="text-sm leading-relaxed text-[#374151]">
+                      <span className="font-semibold text-[#0D0D0D]">{recapEdit.nbCasiers ?? "—"}</span>{" "}
+                      {recapEdit.nbCasiers === 1 ? "casier" : "casiers"} de{" "}
+                      <span className="font-semibold text-[#0D0D0D]">{recapEdit.taille ?? "—"}</span>{" "}
+                      unité{recapEdit.taille === 1 ? "" : "s"} à{" "}
+                      <span className="font-semibold text-[#0D0D0D]">
+                        {recapEdit.prixCasier != null ? formatCurrency(recapEdit.prixCasier) : "—"}
+                      </span>{" "}
+                      par casier, soit{" "}
+                      <span className="font-semibold text-[#0D0D0D]">
+                        {recapEdit.montantCasiers != null ? formatCurrency(recapEdit.montantCasiers) : "—"}
+                      </span>{" "}
+                      pour ce produit
+                      {recapEdit.totalUnites != null ? (
+                        <span className="text-[#6B7280]">
+                          {" "}
+                          ({recapEdit.totalUnites} unité{recapEdit.totalUnites > 1 ? "s" : ""} au total)
+                        </span>
+                      ) : null}
+                      .
+                    </p>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#6B7280]">Coût total</span>
-                    <span className="font-semibold text-[#0D0D0D]">{formatCurrency(editTotalCost)}</span>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </>
           ) : (
             <>
               <div className="space-y-4">
-                {lines.map((line, index) => (
-                  <div
-                    key={line.id}
-                    className="relative space-y-3 rounded-lg border border-[#E5E5E5] bg-[#FAFAFA]/50 p-4"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-[#9CA3AF]">
-                        Produit {index + 1}
-                      </span>
-                      {lines.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 shrink-0 text-red-500 hover:bg-red-50 hover:text-red-600"
-                          onClick={() => removeLine(line.id)}
-                          aria-label="Retirer cette ligne"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Produit</Label>
-                      <Select
-                        value={line.productId}
-                        onValueChange={(v) => updateLine(line.id, { productId: v })}
+                {lines.map((line, index) => {
+                  const selectedProduct = line.productId
+                    ? products?.find((p) => p._id === line.productId)
+                    : undefined;
+                  const recap = supplyLineRecapValues(line);
+                  return (
+                    <div
+                      key={line.id}
+                      className="relative rounded-lg border border-[#E5E5E5] bg-[#FAFAFA]/50 p-4"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-[#9CA3AF]">
+                          Produit {index + 1}
+                        </span>
+                        {lines.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 text-red-500 hover:bg-red-50 hover:text-red-600"
+                            onClick={() => removeLine(line.id)}
+                            aria-label="Retirer cette ligne"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+
+                      <div
+                        className={`mt-3 flex gap-4 items-stretch ${selectedProduct ? "" : "flex-col"}`}
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner un produit" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {productsForLine(line.id).map((p) => (
-                            <SelectItem key={p._id} value={p._id}>
-                              {p.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label>Taille du lot (unités)</Label>
-                        <Select
-                          value={line.lotSize === "" ? undefined : line.lotSize}
-                          onValueChange={(v) => updateLine(line.id, { lotSize: v })}
+                        {selectedProduct ? (
+                          <div className="flex w-[30%] shrink-0 flex-col self-stretch">
+                            <SupplyLineProductImage
+                              imageUrl={selectedProduct.image}
+                              label={selectedProduct.name}
+                            />
+                          </div>
+                        ) : null}
+
+                        <div
+                          className={`min-w-0 space-y-3 ${selectedProduct ? "w-[70%] shrink-0" : "w-full"}`}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Choisir une taille" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {lotSizeSelectOptions(line.lotSize).map((n) => (
-                              <SelectItem key={n} value={String(n)}>
-                                {n}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <div className="space-y-1.5">
+                            <Label>Produit</Label>
+                            <Select
+                              value={line.productId}
+                              onValueChange={(v) => {
+                                const p = products?.find((x) => x._id === v);
+                                const pref =
+                                  p?.defaultMarketSellingPrice != null &&
+                                  Number.isFinite(p.defaultMarketSellingPrice)
+                                    ? String(p.defaultMarketSellingPrice)
+                                    : "";
+                                updateLine(line.id, { productId: v, marketSellingPrice: pref });
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Sélectionner un produit" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {productsForLine(line.id).map((p) => (
+                                  <SelectItem key={p._id} value={p._id}>
+                                    {p.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <Label>Taille du casier (unités)</Label>
+                              <Select
+                                value={line.lotSize === "" ? undefined : line.lotSize}
+                                onValueChange={(v) => updateLine(line.id, { lotSize: v })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Choisir une taille" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {lotSizeSelectOptions(line.lotSize).map((n) => (
+                                    <SelectItem key={n} value={String(n)}>
+                                      {n}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label>Prix du casier (FCFA)</Label>
+                              <Input
+                                type="number"
+                                placeholder="5000"
+                                value={line.lotPrice}
+                                onChange={(e) => updateLine(line.id, { lotPrice: e.target.value })}
+                                min={0}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <Label>Nombre de casiers</Label>
+                              <Input
+                                type="number"
+                                placeholder="4"
+                                value={line.numberOfLots}
+                                onChange={(e) => updateLine(line.id, { numberOfLots: e.target.value })}
+                                min={1}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label>Prix vente marché (FCFA)</Label>
+                              <Input
+                                type="number"
+                                placeholder="Défaut fiche produit"
+                                value={line.marketSellingPrice}
+                                onChange={(e) => updateLine(line.id, { marketSellingPrice: e.target.value })}
+                                min={0}
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <Label>Prix du lot (FCFA)</Label>
-                        <Input
-                          type="number"
-                          placeholder="5000"
-                          value={line.lotPrice}
-                          onChange={(e) => updateLine(line.id, { lotPrice: e.target.value })}
-                          min={0}
-                        />
-                      </div>
+
+                      {selectedProduct ? (
+                        <div className="mt-3 rounded-lg border border-[#E5E5E5] bg-white/80 px-3 py-2.5">
+                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+                            Récapitulatif
+                          </p>
+                          <p className="text-sm leading-relaxed text-[#374151]">
+                            <span className="font-semibold text-[#0D0D0D]">
+                              {recap.nbCasiers ?? "—"}
+                            </span>{" "}
+                            {recap.nbCasiers === 1 ? "casier" : "casiers"} de{" "}
+                            <span className="font-semibold text-[#0D0D0D]">{recap.taille ?? "—"}</span>{" "}
+                            unité{recap.taille === 1 ? "" : "s"} à{" "}
+                            <span className="font-semibold text-[#0D0D0D]">
+                              {recap.prixCasier != null ? formatCurrency(recap.prixCasier) : "—"}
+                            </span>{" "}
+                            par casier, soit{" "}
+                            <span className="font-semibold text-[#0D0D0D]">
+                              {recap.montantCasiers != null ? formatCurrency(recap.montantCasiers) : "—"}
+                            </span>{" "}
+                            pour ce produit
+                            {recap.totalUnites != null ? (
+                              <span className="text-[#6B7280]">
+                                {" "}
+                                ({recap.totalUnites} unité{recap.totalUnites > 1 ? "s" : ""} au total).
+                              </span>
+                            ) : (
+                              "."
+                            )}
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label>Nombre de lots</Label>
-                        <Input
-                          type="number"
-                          placeholder="4"
-                          value={line.numberOfLots}
-                          onChange={(e) => updateLine(line.id, { numberOfLots: e.target.value })}
-                          min={1}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Prix vente marché (FCFA)</Label>
-                        <Input
-                          type="number"
-                          placeholder="1500"
-                          value={line.marketSellingPrice}
-                          onChange={(e) => updateLine(line.id, { marketSellingPrice: e.target.value })}
-                          min={0}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <Button type="button" variant="outline" className="w-full border-dashed" onClick={addLine}>
@@ -448,7 +587,9 @@ function SupplyDialog({
             </Button>
             <Button
               type="submit"
-              disabled={supply ? isSubmitting || !isLineComplete(form) : createSubmitDisabled}
+              disabled={
+                supply ? isSubmitting || !isLineComplete(form, products) : createSubmitDisabled
+              }
             >
               {isSubmitting ? "Enregistrement..." : supply ? "Mettre à jour" : "Enregistrer"}
             </Button>
@@ -560,12 +701,12 @@ export default function SuppliesPage() {
         transition={{ duration: 0.3, delay: 0.2 }}
       >
         <div className="mb-3 flex justify-end">
-          <label className="inline-flex items-center gap-2 text-xs text-[#6B7280]">
+          <label className="inline-flex items-center gap-2 text-xs text-slate-500">
             Lignes par page
             <select
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value) as (typeof PAGE_SIZE_OPTIONS)[number])}
-              className="h-8 rounded-md border border-[#E5E7EB] bg-white px-2 text-xs text-[#0D0D0D] outline-none transition-colors focus:border-[#0D0D0D]"
+              className={premiumTableSelectClass}
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>
@@ -575,99 +716,102 @@ export default function SuppliesPage() {
             </select>
           </label>
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Historique des approvisionnements</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12" />
-                ))}
-              </div>
-            ) : supplies?.length === 0 ? (
-              <p className="text-center py-12 text-[#9CA3AF]">
-                Aucun approvisionnement enregistré
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[#F5F5F5]">
-                      <th className="text-left py-3 px-3 text-xs font-medium text-[#9CA3AF]">Date</th>
-                      <th className="text-left py-3 px-3 text-xs font-medium text-[#9CA3AF]">Produit</th>
-                      <th className="text-center py-3 px-3 text-xs font-medium text-[#9CA3AF]">Lots</th>
-                      <th className="text-center py-3 px-3 text-xs font-medium text-[#9CA3AF]">Unités reçues</th>
-                      <th className="text-right py-3 px-3 text-xs font-medium text-[#9CA3AF]">Coût total</th>
-                      <th className="text-right py-3 px-3 text-xs font-medium text-[#9CA3AF]">Prix vente</th>
-                      <th className="text-left py-3 px-3 text-xs font-medium text-[#9CA3AF]">Enregistré par</th>
+        <PremiumTableShell
+          title="Historique des approvisionnements"
+          isLoading={isLoading}
+          empty={!isLoading && (supplies?.length === 0)}
+          emptyMessage="Aucun approvisionnement enregistré"
+          skeletonRows={5}
+          tableMinWidthClass="min-w-[980px]"
+          skeletonColSpan={isDirector ? 8 : 7}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200/70 bg-slate-950/[0.025] text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <th className="whitespace-nowrap px-6 py-3.5 font-semibold">Date</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Produit</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Lots</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Unités reçues</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 text-right font-semibold">Coût total</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 text-right font-semibold">Prix vente</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Enregistré par</th>
+                  {isDirector && (
+                    <th className="whitespace-nowrap px-6 py-3.5 text-right font-semibold">Actions</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/90">
+                {paginatedSupplies.map((supply) => {
+                  const product = supply.product as { name: string };
+                  const user = supply.createdBy as { firstName: string; lastName: string };
+                  return (
+                    <tr
+                      key={supply._id}
+                      className="group transition-colors duration-200 hover:bg-gradient-to-r hover:from-violet-500/[0.04] hover:via-transparent hover:to-cyan-500/[0.03]"
+                    >
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/55 bg-amber-400/10 px-2.5 py-0.5 text-xs font-medium text-amber-950/80">
+                          {formatDate(supply.createdAt)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="font-semibold text-slate-900">{product?.name}</span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <span className="inline-flex items-center rounded-full border border-violet-200/60 bg-violet-500/12 px-2.5 py-0.5 text-xs font-semibold text-violet-900 backdrop-blur-[2px]">
+                          {supply.numberOfLots} × {supply.lotSize}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <span className="inline-flex items-center rounded-full border border-emerald-200/50 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-900/90">
+                          {supply.totalUnits} unités
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-right font-semibold text-slate-900">
+                        {formatCurrency(supply.totalCost)}
+                      </td>
+                      <td className="px-4 py-4 text-right font-medium text-slate-600">
+                        {formatCurrency(supply.marketSellingPrice)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="inline-flex items-center rounded-full border border-slate-200/60 bg-slate-500/[0.08] px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                          {user?.firstName} {user?.lastName}
+                        </span>
+                      </td>
                       {isDirector && (
-                        <th className="text-right py-3 px-3 text-xs font-medium text-[#9CA3AF] w-[100px]">
-                          Actions
-                        </th>
+                        <td className="px-6 py-4 text-right">
+                          <div className="inline-flex justify-end gap-1 opacity-90 transition group-hover:opacity-100">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-9 w-9 rounded-xl border-slate-200/80 bg-white/80 text-slate-700 shadow-sm backdrop-blur-sm transition hover:border-violet-200 hover:bg-violet-500/8 hover:text-violet-900"
+                              onClick={() => openEdit(supply)}
+                              aria-label="Modifier"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-9 w-9 rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm backdrop-blur-sm transition hover:border-rose-300 hover:bg-rose-500/12 hover:text-rose-700"
+                              onClick={() => setSupplyToDelete(supply)}
+                              aria-label="Supprimer"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
                       )}
                     </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedSupplies.map((supply) => {
-                      const product = supply.product as { name: string };
-                      const user = supply.createdBy as { firstName: string; lastName: string };
-                      return (
-                        <tr
-                          key={supply._id}
-                          className="border-b border-[#FAFAFA] hover:bg-[#FAFAFA] transition-colors"
-                        >
-                          <td className="py-3 px-3 text-[#6B7280]">{formatDate(supply.createdAt)}</td>
-                          <td className="py-3 px-3">
-                            <span className="font-medium text-[#0D0D0D]">{product?.name}</span>
-                          </td>
-                          <td className="py-3 px-3 text-center text-[#374151]">
-                            {supply.numberOfLots} × {supply.lotSize}
-                          </td>
-                          <td className="py-3 px-3 text-center">
-                            <Badge variant="secondary">{supply.totalUnits} unités</Badge>
-                          </td>
-                          <td className="py-3 px-3 text-right font-semibold text-[#0D0D0D]">
-                            {formatCurrency(supply.totalCost)}
-                          </td>
-                          <td className="py-3 px-3 text-right text-[#374151]">
-                            {formatCurrency(supply.marketSellingPrice)}
-                          </td>
-                          <td className="py-3 px-3 text-[#6B7280] text-xs">
-                            {user?.firstName} {user?.lastName}
-                          </td>
-                          {isDirector && (
-                            <td className="py-3 px-3 text-right">
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => openEdit(supply)}
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                  onClick={() => setSupplyToDelete(supply)}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                              </div>
-                            </td>
-                          )}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </PremiumTableShell>
       </motion.div>
 
       <PaginationControls

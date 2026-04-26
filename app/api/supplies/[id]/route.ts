@@ -4,13 +4,7 @@ import { requireAuth } from "@/lib/auth-middleware";
 import { isStandardSupplyLotSize } from "@/lib/supply-lot-sizes";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
-
-async function syncProductSellingPriceFromLatestSupply(productId: string) {
-  const latest = await Supply.findOne({ product: productId }).sort({ createdAt: -1 }).lean();
-  if (latest) {
-    await Product.findByIdAndUpdate(productId, { sellingPrice: latest.marketSellingPrice });
-  }
-}
+import { marketPriceAboveCatalogError } from "@/lib/product-market-price";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAuth(["directeur"]);
@@ -35,18 +29,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
   }
 
+  const priceErr = marketPriceAboveCatalogError(Number(product.sellingPrice), Number(marketSellingPrice));
+  if (priceErr) {
+    return NextResponse.json({ error: priceErr }, { status: 400 });
+  }
+
   const nextLotSize = Number(lotSize);
   if (
     !Number.isFinite(nextLotSize) ||
     (!isStandardSupplyLotSize(nextLotSize) && nextLotSize !== supply.lotSize)
   ) {
     return NextResponse.json(
-      { error: "Taille du lot invalide : choisir 3, 6, 12 ou 24 unités" },
+      { error: "Taille du casier invalide : choisir 6, 12 ou 24 unités" },
       { status: 400 }
     );
   }
-
-  const oldProductId = supply.product.toString();
 
   supply.product = productId;
   supply.lotSize = Number(lotSize);
@@ -55,13 +52,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   supply.marketSellingPrice = Number(marketSellingPrice);
   await supply.save();
 
-  const newProductId = supply.product.toString();
-  if (oldProductId !== newProductId) {
-    await syncProductSellingPriceFromLatestSupply(oldProductId);
-  }
-  await syncProductSellingPriceFromLatestSupply(newProductId);
-
-  await supply.populate("product", "name image sellingPrice");
+  await supply.populate("product", "name image sellingPrice defaultMarketSellingPrice");
   await supply.populate("createdBy", "firstName lastName");
 
   return NextResponse.json(supply);
@@ -79,9 +70,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Approvisionnement introuvable" }, { status: 404 });
   }
 
-  const productId = supply.product.toString();
   await Supply.findByIdAndDelete(id);
-  await syncProductSellingPriceFromLatestSupply(productId);
 
   return NextResponse.json({ message: "Approvisionnement supprimé" });
 }

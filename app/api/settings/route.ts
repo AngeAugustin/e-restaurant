@@ -10,6 +10,7 @@ import {
   isAllowedPrimaryColor,
   isAllowedLogoUrl,
   normalizeHexColor,
+  normalizeLowStockAlertThreshold,
   normalizeSolutionName,
   normalizeEmailList,
 } from "@/lib/app-settings";
@@ -19,6 +20,7 @@ function toClientPayload(doc: {
   logoUrl?: string;
   solutionName?: string;
   lowStockAlertEmails?: unknown;
+  lowStockAlertThreshold?: unknown;
 }) {
   const safeLogoUrl =
     typeof doc.logoUrl === "string" && isAllowedLogoUrl(doc.logoUrl) ? doc.logoUrl : DEFAULT_LOGO_URL;
@@ -32,6 +34,7 @@ function toClientPayload(doc: {
     logoUrl: safeLogoUrl,
     solutionName: safeSolutionName,
     lowStockAlertEmails: normalizeEmailList(doc.lowStockAlertEmails),
+    lowStockAlertThreshold: normalizeLowStockAlertThreshold(doc.lowStockAlertThreshold),
   };
 }
 
@@ -53,8 +56,9 @@ export async function PUT(req: NextRequest) {
     primaryColor?: unknown;
     solutionName?: unknown;
     lowStockAlertEmails?: unknown;
+    lowStockAlertThreshold?: unknown;
   };
-  const updates: Record<string, string | string[]> = {};
+  const updates: Record<string, string | string[] | number> = {};
 
   if (Object.prototype.hasOwnProperty.call(body, "primaryColor")) {
     if (typeof body.primaryColor !== "string" || !isAllowedPrimaryColor(body.primaryColor)) {
@@ -75,6 +79,37 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Maximum 15 adresses email" }, { status: 400 });
     }
     updates.lowStockAlertEmails = emails;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "lowStockAlertThreshold")) {
+    if (session?.user?.role !== "directeur") {
+      return NextResponse.json(
+        { error: "Seul un directeur peut modifier le seuil d'alerte" },
+        { status: 403 }
+      );
+    }
+    const raw = body.lowStockAlertThreshold;
+    if (typeof raw === "string") {
+      if (!/^\d{1,3}$/.test(raw.trim())) {
+        return NextResponse.json(
+          { error: "Seuil d'alerte invalide (entier entre 0 et 999)" },
+          { status: 400 }
+        );
+      }
+    } else if (typeof raw === "number") {
+      if (!Number.isFinite(raw) || !Number.isInteger(raw) || raw < 0 || raw > 999) {
+        return NextResponse.json(
+          { error: "Seuil d'alerte invalide (entier entre 0 et 999)" },
+          { status: 400 }
+        );
+      }
+    } else {
+      return NextResponse.json(
+        { error: "Seuil d'alerte invalide (entier entre 0 et 999)" },
+        { status: 400 }
+      );
+    }
+    updates.lowStockAlertThreshold = normalizeLowStockAlertThreshold(body.lowStockAlertThreshold);
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "solutionName")) {

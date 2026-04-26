@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 
 const MONGODB_URI = process.env.MONGODB_URI!;
+const MONGODB_CONNECT_TIMEOUT_MS = 5000;
+const MONGODB_SOCKET_TIMEOUT_MS = 10000;
 
 if (!MONGODB_URI) {
   throw new Error("Please define the MONGODB_URI environment variable in .env.local");
@@ -23,9 +25,18 @@ export async function connectDB(): Promise<typeof mongoose> {
   if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, {
-      bufferCommands: false,
-    });
+    cached.promise = mongoose
+      .connect(MONGODB_URI, {
+        bufferCommands: false,
+        serverSelectionTimeoutMS: MONGODB_CONNECT_TIMEOUT_MS,
+        connectTimeoutMS: MONGODB_CONNECT_TIMEOUT_MS,
+        socketTimeoutMS: MONGODB_SOCKET_TIMEOUT_MS,
+      })
+      .catch((error) => {
+        // Allow a new connection attempt after a transient network failure.
+        cached.promise = null;
+        throw error;
+      });
   }
 
   cached.conn = await cached.promise;

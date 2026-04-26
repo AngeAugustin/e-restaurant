@@ -101,7 +101,7 @@ export function CloseSaleDialog({
               <div className="bg-[#F5F5F5] rounded-xl p-4">
                 <div className="flex justify-between mb-3">
                   <span className="text-sm text-[#6B7280]">Montant total</span>
-                  <span className="font-bold text-[#0D0D0D] text-lg">{formatCurrency(sale.totalAmount)}</span>
+                  <span className="text-lg font-bold text-primary">{formatCurrency(sale.totalAmount)}</span>
                 </div>
                 {(sale.items as Array<{ product: { name: string }; quantity: number; total: number }>).map(
                   (item, i) => (
@@ -122,8 +122,8 @@ export function CloseSaleDialog({
                     className={cn(
                       "rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors",
                       paymentMethod === "CASH"
-                        ? "border-[#0D0D0D] bg-[#0D0D0D] text-white"
-                        : "border-[#E5E5E5] bg-white text-[#374151] hover:bg-[#F5F5F5]"
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-[#E5E5E5] bg-white text-[#374151] hover:border-primary/25 hover:bg-[#F5F5F5]"
                     )}
                   >
                     Espèces
@@ -134,8 +134,8 @@ export function CloseSaleDialog({
                     className={cn(
                       "rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors",
                       paymentMethod === "MOBILE_MONEY"
-                        ? "border-[#0D0D0D] bg-[#0D0D0D] text-white"
-                        : "border-[#E5E5E5] bg-white text-[#374151] hover:bg-[#F5F5F5]"
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-[#E5E5E5] bg-white text-[#374151] hover:bg-[#F5F5F5] hover:border-primary/25"
                     )}
                   >
                     Mobile Money
@@ -188,15 +188,15 @@ export function CloseSaleDialog({
             <div className="space-y-3 rounded-xl border border-[#E5E5E5] bg-[#FAFAFA] p-4 text-sm">
               <div className="flex justify-between text-[#6B7280]">
                 <span>Montant total</span>
-                <span className="font-semibold text-[#0D0D0D]">{formatCurrency(sale.totalAmount)}</span>
+                <span className="font-semibold text-primary">{formatCurrency(sale.totalAmount)}</span>
               </div>
               <div className="flex justify-between text-[#6B7280]">
                 <span>Mode de paiement</span>
-                <span className="font-semibold text-[#0D0D0D]">{formatSalePaymentLabel(paymentMethod)}</span>
+                <span className="font-semibold text-primary">{formatSalePaymentLabel(paymentMethod)}</span>
               </div>
               <div className="flex justify-between text-[#6B7280]">
                 <span>Montant remis</span>
-                <span className="font-semibold text-[#0D0D0D]">{formatCurrency(parseFloat(amountPaid))}</span>
+                <span className="font-semibold text-primary">{formatCurrency(parseFloat(amountPaid))}</span>
               </div>
               {change !== null && change > 0 && (
                 <div className="flex justify-between border-t border-[#E5E5E5] pt-3 font-medium text-green-800">

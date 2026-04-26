@@ -3,18 +3,16 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { redirect } from "next/navigation";
 import { motion } from "framer-motion";
 import { Plus, Users, Shield, UserCheck, Pencil, Trash2, Eye, EyeOff, Phone, CalendarClock } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { PaginationControls } from "@/components/shared/PaginationControls";
+import { PremiumTableShell, premiumTableSelectClass } from "@/components/shared/PremiumTableShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -307,12 +305,12 @@ export default function UsersPage() {
         transition={{ duration: 0.3, delay: 0.2 }}
       >
         <div className="mb-3 flex justify-end">
-          <label className="inline-flex items-center gap-2 text-xs text-[#6B7280]">
-            Cartes par page
+          <label className="inline-flex items-center gap-2 text-xs text-slate-500">
+            Lignes par page
             <select
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value) as (typeof PAGE_SIZE_OPTIONS)[number])}
-              className="h-8 rounded-md border border-[#E5E7EB] bg-white px-2 text-xs text-[#0D0D0D] outline-none transition-colors focus:border-[#0D0D0D]"
+              className={premiumTableSelectClass}
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>
@@ -322,88 +320,108 @@ export default function UsersPage() {
             </select>
           </label>
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Liste des utilisateurs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16" />)}
-              </div>
-            ) : users?.length === 0 ? (
-              <p className="text-center py-12 text-[#9CA3AF]">Aucun utilisateur</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {paginatedUsers.map((user) => (
-                  <div
-                    key={user._id}
-                    className="group rounded-2xl border border-[#E9EAEC] bg-white p-4 shadow-[0_4px_20px_-18px_rgba(0,0,0,0.35)] transition-all duration-200 hover:border-[#DDE1E6] hover:shadow-[0_12px_34px_-18px_rgba(0,0,0,0.45)]"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0 flex items-start gap-3">
-                        <div className="relative mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
-                          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#111827] to-[#374151]" />
-                          <span className="relative text-sm font-semibold text-white">
-                            {getInitials(user.firstName, user.lastName)}
-                          </span>
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <p className="truncate text-sm font-semibold tracking-tight text-[#111827]">
+
+        <PremiumTableShell
+          title="Membres de l&apos;équipe"
+          isLoading={isLoading}
+          empty={!isLoading && (users?.length === 0)}
+          emptyMessage="Aucun utilisateur"
+          skeletonColSpan={6}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200/70 bg-slate-950/[0.025] text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <th className="whitespace-nowrap px-6 py-3.5 font-semibold">Utilisateur</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Email</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Rôle</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Téléphone</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Inscription</th>
+                  <th className="whitespace-nowrap px-6 py-3.5 text-right font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/90">
+                  {paginatedUsers.map((user) => (
+                    <tr
+                      key={user._id}
+                      className="group transition-colors duration-200 hover:bg-gradient-to-r hover:from-violet-500/[0.04] hover:via-transparent hover:to-cyan-500/[0.03]"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-800/90 to-slate-600/80 shadow-inner ring-1 ring-white/25">
+                            <span className="text-xs font-bold tracking-tight text-white">
+                              {getInitials(user.firstName, user.lastName)}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-slate-900">
                               {user.firstName} {user.lastName}
                             </p>
-                            <Badge
-                              variant={user.role === "directeur" ? "default" : "secondary"}
-                              className="rounded-full"
-                            >
-                              {user.role === "directeur" ? "Directeur" : "Gérant"}
-                            </Badge>
-                          </div>
-                          <p className="mt-1 truncate text-sm text-[#6B7280]">{user.email}</p>
-                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                            {user.phone && (
-                              <Badge variant="outline" className="rounded-full border-[#E5E7EB] text-[#4B5563]">
-                                <Phone className="mr-1 h-3 w-3" />
-                                {user.phone}
-                              </Badge>
-                            )}
-                            <Badge variant="outline" className="rounded-full border-[#E5E7EB] text-[#6B7280]">
-                              <CalendarClock className="mr-1 h-3 w-3" />
-                              Depuis {formatDate(user.createdAt)}
-                            </Badge>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8 rounded-full border-[#E5E7EB] bg-white hover:bg-[#F8FAFC]"
-                          onClick={() => openEdit(user)}
-                          aria-label={`Modifier ${user.firstName} ${user.lastName}`}
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        {user._id !== session?.user?.id && (
+                      </td>
+                      <td className="max-w-[220px] px-4 py-4">
+                        <span className="block truncate font-medium text-slate-600">{user.email}</span>
+                      </td>
+                      <td className="px-4 py-4">
+                        {user.role === "directeur" ? (
+                          <span className="inline-flex items-center rounded-full border border-violet-200/60 bg-violet-500/12 px-2.5 py-0.5 text-xs font-semibold text-violet-800 backdrop-blur-[2px]">
+                            Directeur
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full border border-sky-200/60 bg-sky-500/12 px-2.5 py-0.5 text-xs font-semibold text-sky-900 backdrop-blur-[2px]">
+                            Gérant
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        {user.phone ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/50 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-900/90">
+                            <Phone className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+                            {user.phone}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/55 bg-amber-400/10 px-2.5 py-0.5 text-xs font-medium text-amber-950/80">
+                          <CalendarClock className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+                          {formatDate(user.createdAt)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="inline-flex items-center justify-end gap-1 opacity-90 transition group-hover:opacity-100">
                           <Button
+                            type="button"
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8 rounded-full border-[#F2D7D7] bg-white text-red-500 hover:bg-red-50 hover:text-red-600"
-                            onClick={() => setUserToDelete(user)}
-                            aria-label={`Supprimer ${user.firstName} ${user.lastName}`}
+                            className="h-9 w-9 rounded-xl border-slate-200/80 bg-white/80 text-slate-700 shadow-sm backdrop-blur-sm transition hover:border-violet-200 hover:bg-violet-500/8 hover:text-violet-900"
+                            onClick={() => openEdit(user)}
+                            aria-label={`Modifier ${user.firstName} ${user.lastName}`}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Pencil className="h-4 w-4" />
                           </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                          {user._id !== session?.user?.id && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-9 w-9 rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm backdrop-blur-sm transition hover:border-rose-300 hover:bg-rose-500/12 hover:text-rose-700"
+                              onClick={() => setUserToDelete(user)}
+                              aria-label={`Supprimer ${user.firstName} ${user.lastName}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </PremiumTableShell>
       </motion.div>
 
       <PaginationControls

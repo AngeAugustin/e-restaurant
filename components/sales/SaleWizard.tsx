@@ -282,13 +282,13 @@ export default function SaleWizard({
       <div className="mb-8">
         <Link
           href={backHref}
-          className="inline-flex items-center gap-2 text-sm text-[#6B7280] hover:text-[#0D0D0D] transition-colors mb-4"
+          className="inline-flex items-center gap-2 text-sm text-[#6B7280] hover:text-primary transition-colors mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
           {mode === "create" ? "Retour aux ventes" : "Retour à la fiche vente"}
         </Link>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#0D0D0D]">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             {mode === "create" ? "Nouvelle vente" : "Modifier la vente"}
           </h1>
           <p className="text-sm text-[#6B7280] mt-1">
@@ -312,7 +312,7 @@ export default function SaleWizard({
                   <div
                     className={cn(
                       "hidden sm:block h-0.5 w-24 md:w-36 lg:w-44 shrink-0 rounded-full transition-colors",
-                      step > prevStep.n ? "bg-[#0D0D0D]" : "bg-[#E5E5E5]"
+                      step > prevStep.n ? "bg-primary" : "bg-[#E5E5E5]"
                     )}
                   />
                 )}
@@ -320,8 +320,8 @@ export default function SaleWizard({
                   <div
                     className={cn(
                       "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 transition-colors",
-                      done && "border-[#0D0D0D] bg-[#0D0D0D] text-white",
-                      active && !done && "border-[#0D0D0D] bg-white text-[#0D0D0D]",
+                      done && "border-primary bg-primary text-primary-foreground",
+                      active && !done && "border-primary bg-white text-primary",
                       !active && !done && "border-[#E5E5E5] bg-[#FAFAFA] text-[#9CA3AF]"
                     )}
                   >
@@ -335,7 +335,7 @@ export default function SaleWizard({
                     <p
                       className={cn(
                         "text-sm font-semibold whitespace-nowrap",
-                        active || done ? "text-[#0D0D0D]" : "text-[#9CA3AF]"
+                        active || done ? "text-primary" : "text-[#9CA3AF]"
                       )}
                     >
                       {s.label}
@@ -364,10 +364,10 @@ export default function SaleWizard({
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F5F5F5]">
-                    <User className="w-4 h-4 text-[#0D0D0D]" />
+                    <User className="w-4 h-4 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-base">Serveuse</CardTitle>
+                    <CardTitle className="text-base text-primary">Serveuse</CardTitle>
                     <CardDescription>Qui prend en charge cette commande ?</CardDescription>
                   </div>
                 </div>
@@ -393,10 +393,10 @@ export default function SaleWizard({
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F5F5F5]">
-                    <UtensilsCrossed className="w-4 h-4 text-[#0D0D0D]" />
+                    <UtensilsCrossed className="w-4 h-4 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-base">Tables</CardTitle>
+                    <CardTitle className="text-base text-primary">Tables</CardTitle>
                     <CardDescription>Sélectionnez une ou plusieurs tables</CardDescription>
                   </div>
                 </div>
@@ -420,10 +420,10 @@ export default function SaleWizard({
                         className={cn(
                           "rounded-xl border-2 px-2 py-2.5 text-sm font-medium transition-all flex flex-col items-center justify-center min-h-[4.25rem]",
                           selected && !occupied
-                            ? "border-[#0D0D0D] bg-[#0D0D0D] text-white shadow-sm"
+                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
                             : occupied
                               ? "border-amber-200 bg-amber-50/80 text-amber-900/70 cursor-not-allowed opacity-90"
-                              : "border-[#E5E5E5] bg-white text-[#374151] hover:border-[#0D0D0D]/40"
+                              : "border-[#E5E5E5] bg-white text-[#374151] hover:border-primary/40"
                         )}
                       >
                         <span className="leading-tight">{t.name ?? `T${t.number}`}</span>
@@ -445,7 +445,7 @@ export default function SaleWizard({
           <div className="grid lg:grid-cols-12 gap-8 items-start">
             <div className="lg:col-span-7 space-y-4 order-2 lg:order-1">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-[#0D0D0D]">Catalogue</h2>
+                <h2 className="text-lg font-semibold text-primary">Catalogue</h2>
                 <span className="text-xs text-[#6B7280]">
                   {availableProducts.length} produit{availableProducts.length !== 1 ? "s" : ""} en stock
                 </span>
@@ -460,10 +460,10 @@ export default function SaleWizard({
                       onClick={() => addToCart(product)}
                       disabled={!!inCart}
                       className={cn(
-                        "rounded-xl border-2 p-3 text-left transition-all flex gap-3 items-center min-h-[5.25rem]",
+                        "flex min-h-[5.25rem] items-center gap-3 rounded-xl border-2 p-3 text-left transition-all",
                         inCart
-                          ? "border-[#0D0D0D] bg-[#0D0D0D] text-white opacity-85"
-                          : "border-[#E5E5E5] bg-white hover:border-[#0D0D0D] hover:shadow-sm"
+                          ? "border-primary bg-primary text-primary-foreground opacity-90 shadow-sm"
+                          : "border-primary/25 bg-gradient-to-br from-white to-primary/[0.04] hover:border-primary hover:bg-primary/[0.06] hover:shadow-md"
                       )}
                     >
                       <ProductThumb
@@ -476,18 +476,18 @@ export default function SaleWizard({
                         <p
                           className={cn(
                             "text-sm font-semibold line-clamp-2",
-                            inCart ? "text-white" : "text-[#0D0D0D]"
+                            inCart ? "text-primary-foreground" : "text-primary"
                           )}
                         >
                           {product.name}
                         </p>
-                        <p className={cn("text-xs mt-1", inCart ? "text-white/80" : "text-[#374151]")}>
+                        <p className={cn("text-xs mt-1", inCart ? "text-primary-foreground/80" : "text-[#374151]")}>
                           {formatCurrency(product.marketSellingPrice)}
                           {!inCart && product.marketSellingPrice !== product.sellingPrice && (
                             <span className="text-[#9CA3AF]"> · cat. {formatCurrency(product.sellingPrice)}</span>
                           )}
                         </p>
-                        <p className={cn("text-xs mt-auto pt-1.5", inCart ? "text-white/60" : "text-[#9CA3AF]")}>
+                        <p className={cn("text-xs mt-auto pt-1.5", inCart ? "text-primary-foreground/60" : "text-[#9CA3AF]")}>
                           Stock {product.stock}
                         </p>
                       </div>
@@ -498,13 +498,17 @@ export default function SaleWizard({
             </div>
 
             <div className="lg:col-span-5 order-1 lg:order-2 lg:sticky lg:top-6">
-              <Card className="border-[#E5E5E5] shadow-md overflow-hidden">
-                <CardHeader className="bg-[#0D0D0D] text-white border-0 pb-4">
-                  <div className="flex items-center gap-2">
-                    <ShoppingCart className="w-5 h-5" />
-                    <CardTitle className="text-base text-white">Panier</CardTitle>
+              <Card className="overflow-hidden border-primary/20 shadow-md ring-1 ring-primary/15">
+                <CardHeader className="relative border-0 bg-gradient-to-br from-primary to-primary/90 pb-5 pt-6 text-primary-foreground shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]">
+                  <div
+                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_80%_at_0%_0%,rgba(255,255,255,0.14),transparent_55%)]"
+                    aria-hidden
+                  />
+                  <div className="relative flex items-center gap-2">
+                    <ShoppingCart className="h-5 w-5 shrink-0 opacity-95" />
+                    <CardTitle className="text-base text-primary-foreground">Panier</CardTitle>
                   </div>
-                  <CardDescription className="text-white/60">
+                  <CardDescription className="relative text-primary-foreground/75">
                     {cart.length === 0
                       ? "Ajoutez des produits depuis le catalogue"
                       : `${cart.length} article${cart.length > 1 ? "s" : ""}`}
@@ -524,7 +528,7 @@ export default function SaleWizard({
                             variant="light"
                           />
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-[#0D0D0D] truncate">{item.name}</p>
+                            <p className="truncate text-sm font-medium text-primary">{item.name}</p>
                             <p className="text-xs text-[#6B7280]">{formatCurrency(item.price)} / u.</p>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
@@ -545,7 +549,7 @@ export default function SaleWizard({
                               <Plus className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                          <span className="text-sm font-semibold text-[#0D0D0D] w-24 text-right shrink-0">
+                          <span className="w-24 shrink-0 text-right text-sm font-semibold text-primary">
                             {formatCurrency(item.price * item.quantity)}
                           </span>
                           <button
@@ -561,9 +565,9 @@ export default function SaleWizard({
                     </div>
                   )}
                   {cart.length > 0 && (
-                    <div className="flex items-center justify-between border-t border-[#E5E5E5] p-4 bg-[#FAFAFA]">
-                      <span className="text-sm font-semibold text-[#0D0D0D]">Total</span>
-                      <span className="text-lg font-bold text-[#0D0D0D]">{formatCurrency(totalAmount)}</span>
+                    <div className="flex items-center justify-between border-t border-[#E5E5E5] bg-[#FAFAFA] p-4">
+                      <span className="text-sm font-semibold text-primary">Total</span>
+                      <span className="text-lg font-bold text-primary">{formatCurrency(totalAmount)}</span>
                     </div>
                   )}
                 </CardContent>
@@ -576,8 +580,8 @@ export default function SaleWizard({
           <div className="max-w-lg mx-auto">
             <Card className="border-[#E5E5E5] shadow-md overflow-hidden">
               <CardHeader className="bg-[#FAFAFA] border-b border-[#E5E5E5]">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Receipt className="w-5 h-5" />
+                <CardTitle className="flex items-center gap-2 text-base text-primary">
+                  <Receipt className="h-5 w-5" />
                   Récapitulatif
                 </CardTitle>
                 <CardDescription>
@@ -589,11 +593,11 @@ export default function SaleWizard({
               <CardContent className="pt-6 space-y-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#6B7280]">Serveuse</span>
-                  <span className="font-medium text-[#0D0D0D]">{waitressName()}</span>
+                  <span className="font-medium text-primary">{waitressName()}</span>
                 </div>
                 <div className="flex justify-between text-sm gap-4">
                   <span className="text-[#6B7280] shrink-0">Tables</span>
-                  <span className="font-medium text-[#0D0D0D] text-right">{tableLabel()}</span>
+                  <span className="text-right font-medium text-primary">{tableLabel()}</span>
                 </div>
                 <div className="border-t border-[#E5E5E5] pt-4 space-y-2">
                   {cart.map((item) => (
@@ -601,15 +605,15 @@ export default function SaleWizard({
                       <span className="text-[#374151]">
                         {item.name} × {item.quantity}
                       </span>
-                      <span className="font-medium text-[#0D0D0D]">
+                      <span className="font-medium text-primary">
                         {formatCurrency(item.price * item.quantity)}
                       </span>
                     </div>
                   ))}
                 </div>
                 <div className="border-t border-[#E5E5E5] pt-4 flex items-center justify-between">
-                  <span className="font-semibold text-[#0D0D0D]">Total à payer</span>
-                  <span className="text-2xl font-bold text-[#0D0D0D]">{formatCurrency(totalAmount)}</span>
+                  <span className="font-semibold text-primary">Total à payer</span>
+                  <span className="text-2xl font-bold text-primary">{formatCurrency(totalAmount)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -649,9 +653,11 @@ export default function SaleWizard({
           )}
           {step === 3 && (
             <Button
+              type="button"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="w-full sm:w-auto min-w-[200px] bg-[#0D0D0D]"
+              size="lg"
+              className="w-full min-w-[220px] bg-primary text-base font-semibold text-primary-foreground shadow-md hover:bg-primary/90 sm:w-auto"
             >
               {isSubmitting
                 ? mode === "create"

@@ -19,6 +19,24 @@ export const PRIMARY_COLOR_PALETTE = [
 export const DEFAULT_PRIMARY_COLOR = PRIMARY_COLOR_PALETTE[0];
 export const DEFAULT_LOGO_URL = "/Logo.png";
 
+/** Nombre d’unités (inclus) en dessous duquel le stock est considéré comme bas (alerte email, indicateurs). */
+export const DEFAULT_LOW_STOCK_ALERT_THRESHOLD = 5;
+
+const LOW_STOCK_THRESHOLD_MIN = 0;
+const LOW_STOCK_THRESHOLD_MAX = 999;
+
+export function normalizeLowStockAlertThreshold(input: unknown): number {
+  let n: number;
+  if (typeof input === "number" && Number.isFinite(input)) {
+    n = Math.trunc(input);
+  } else if (typeof input === "string" && /^\d+$/.test(input.trim())) {
+    n = Number.parseInt(input.trim(), 10);
+  } else {
+    return DEFAULT_LOW_STOCK_ALERT_THRESHOLD;
+  }
+  return Math.min(LOW_STOCK_THRESHOLD_MAX, Math.max(LOW_STOCK_THRESHOLD_MIN, n));
+}
+
 export function isAllowedPrimaryColor(color: string): boolean {
   return normalizeHexColor(color) !== null;
 }

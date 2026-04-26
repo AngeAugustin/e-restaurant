@@ -8,10 +8,9 @@ import { Plus, ShoppingCart, TrendingUp, Clock, CheckCircle2, Eye, Pencil } from
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { StatsCard } from "@/components/shared/StatsCard";
+import { PremiumTableShell, premiumTableSelectClass } from "@/components/shared/PremiumTableShell";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import type { ISale } from "@/types";
 import { formatSaleTablesLine } from "@/lib/sale-tables";
@@ -116,12 +115,12 @@ export default function SalesPage() {
         transition={{ duration: 0.3, delay: 0.2 }}
       >
         <div className="mb-3 flex justify-end">
-          <label className="inline-flex items-center gap-2 text-xs text-[#6B7280]">
+          <label className="inline-flex items-center gap-2 text-xs text-slate-500">
             Lignes par page
             <select
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value) as (typeof PAGE_SIZE_OPTIONS)[number])}
-              className="h-8 rounded-md border border-[#E5E7EB] bg-white px-2 text-xs text-[#0D0D0D] outline-none transition-colors focus:border-[#0D0D0D]"
+              className={premiumTableSelectClass}
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>
@@ -131,123 +130,131 @@ export default function SalesPage() {
             </select>
           </label>
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Liste des ventes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14" />)}
-              </div>
-            ) : sales?.length === 0 ? (
-              <p className="text-center py-12 text-[#9CA3AF]">Aucune vente enregistrée</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[#F5F5F5]">
-                      <th className="text-left py-3 px-3 text-xs font-medium text-[#9CA3AF]">Date</th>
-                      <th className="text-left py-3 px-3 text-xs font-medium text-[#9CA3AF]">Tables</th>
-                      <th className="text-left py-3 px-3 text-xs font-medium text-[#9CA3AF]">Serveuse</th>
-                      <th className="text-center py-3 px-3 text-xs font-medium text-[#9CA3AF]">Articles</th>
-                      <th className="text-right py-3 px-3 text-xs font-medium text-[#9CA3AF]">Total</th>
-                      <th className="text-center py-3 px-3 text-xs font-medium text-[#9CA3AF]">Statut</th>
-                      <th className="text-right py-3 px-3 text-xs font-medium text-[#9CA3AF] min-w-[200px]">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <AnimatePresence>
-                      {paginatedSales.map((sale) => {
-                        const waitress = sale.waitress as { firstName: string; lastName: string };
-                        return (
-                          <motion.tr
-                            key={sale._id}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="border-b border-[#FAFAFA] hover:bg-[#FAFAFA] transition-colors"
-                          >
-                            <td className="py-3.5 px-3 text-[#6B7280]">
-                              {formatDateTime(sale.createdAt)}
-                            </td>
-                            <td className="py-3.5 px-3 font-medium text-[#0D0D0D] max-w-[200px] truncate" title={formatSaleTablesLine(sale)}>
-                              {formatSaleTablesLine(sale)}
-                            </td>
-                            <td className="py-3.5 px-3 text-[#374151]">
-                              {waitress?.firstName} {waitress?.lastName}
-                            </td>
-                            <td className="py-3.5 px-3 text-center">
-                              <Badge variant="secondary">{sale.items.length} article{sale.items.length > 1 ? "s" : ""}</Badge>
-                            </td>
-                            <td className="py-3.5 px-3 text-right font-semibold text-[#0D0D0D]">
-                              {formatCurrency(sale.totalAmount)}
-                            </td>
-                            <td className="py-3.5 px-3 text-center">
-                              <Badge
-                                variant={
-                                  sale.status === "COMPLETED"
-                                    ? "success"
-                                    : sale.status === "CANCELLED"
-                                      ? "destructive"
-                                      : "pending"
-                                }
-                              >
-                                {sale.status === "COMPLETED"
-                                  ? "Clôturée"
-                                  : sale.status === "CANCELLED"
-                                    ? "Annulée"
-                                    : "En attente"}
-                              </Badge>
-                            </td>
-                            <td className="py-3.5 px-3 text-right">
-                              <div className="flex flex-wrap items-center justify-end gap-1.5">
-                                <Button size="sm" variant="outline" asChild>
-                                  <Link href={`/sales/${sale._id}`}>
-                                    <Eye className="w-3.5 h-3.5 sm:mr-1" />
-                                    <span className="hidden sm:inline">Détails</span>
+        <PremiumTableShell
+          title="Liste des ventes"
+          isLoading={isLoading}
+          empty={!isLoading && (sales?.length === 0)}
+          emptyMessage="Aucune vente enregistrée"
+          skeletonRows={6}
+          tableMinWidthClass="min-w-[960px]"
+          skeletonColSpan={7}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200/70 bg-slate-950/[0.025] text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <th className="whitespace-nowrap px-6 py-3.5 font-semibold">Date</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Tables</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Serveuse</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Articles</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 text-right font-semibold">Total</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Statut</th>
+                  <th className="min-w-[220px] whitespace-nowrap px-6 py-3.5 text-right font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/90">
+                <AnimatePresence>
+                  {paginatedSales.map((sale) => {
+                    const waitress = sale.waitress as { firstName: string; lastName: string };
+                    return (
+                      <motion.tr
+                        key={sale._id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="group border-b border-transparent transition-colors duration-200 hover:bg-gradient-to-r hover:from-violet-500/[0.04] hover:via-transparent hover:to-cyan-500/[0.03]"
+                      >
+                        <td className="px-6 py-4">
+                          <span className="inline-flex rounded-full border border-slate-200/60 bg-slate-500/[0.08] px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                            {formatDateTime(sale.createdAt)}
+                          </span>
+                        </td>
+                        <td
+                          className="max-w-[200px] truncate px-4 py-4 font-medium text-slate-900"
+                          title={formatSaleTablesLine(sale)}
+                        >
+                          {formatSaleTablesLine(sale)}
+                        </td>
+                        <td className="px-4 py-4 text-slate-600">
+                          {waitress?.firstName} {waitress?.lastName}
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <span className="inline-flex items-center rounded-full border border-cyan-200/55 bg-cyan-500/10 px-2.5 py-0.5 text-xs font-semibold text-cyan-950/85">
+                            {sale.items.length} article{sale.items.length > 1 ? "s" : ""}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-right font-semibold text-slate-900">
+                          {formatCurrency(sale.totalAmount)}
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          {sale.status === "COMPLETED" ? (
+                            <span className="inline-flex items-center rounded-full border border-emerald-200/60 bg-emerald-500/12 px-2.5 py-0.5 text-xs font-semibold text-emerald-900 backdrop-blur-[2px]">
+                              Clôturée
+                            </span>
+                          ) : sale.status === "CANCELLED" ? (
+                            <span className="inline-flex items-center rounded-full border border-rose-200/60 bg-rose-500/12 px-2.5 py-0.5 text-xs font-semibold text-rose-900 backdrop-blur-[2px]">
+                              Annulée
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full border border-violet-200/60 bg-violet-500/12 px-2.5 py-0.5 text-xs font-semibold text-violet-900 backdrop-blur-[2px]">
+                              En attente
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex flex-wrap items-center justify-end gap-1.5 opacity-95 transition group-hover:opacity-100">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-xl border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-sm hover:border-violet-200 hover:bg-violet-500/8"
+                              asChild
+                            >
+                              <Link href={`/sales/${sale._id}`}>
+                                <Eye className="w-3.5 h-3.5 sm:mr-1" />
+                                <span className="hidden sm:inline">Détails</span>
+                              </Link>
+                            </Button>
+                            {sale.status === "PENDING" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="rounded-xl border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-sm hover:border-violet-200 hover:bg-violet-500/8"
+                                  asChild
+                                >
+                                  <Link href={`/sales/${sale._id}/edit`}>
+                                    <Pencil className="w-3.5 h-3.5 sm:mr-1" />
+                                    <span className="hidden sm:inline">Modifier</span>
                                   </Link>
                                 </Button>
-                                {sale.status === "PENDING" && (
-                                  <>
-                                    <Button size="sm" variant="outline" asChild>
-                                      <Link href={`/sales/${sale._id}/edit`}>
-                                        <Pencil className="w-3.5 h-3.5 sm:mr-1" />
-                                        <span className="hidden sm:inline">Modifier</span>
-                                      </Link>
-                                    </Button>
-                                    <Button size="sm" variant="default" onClick={() => setSaleToClose(sale)}>
-                                      Clôturer
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="border-[#F2D7D7] text-red-600 hover:bg-red-50 hover:text-red-700"
-                                      onClick={() => setSaleToCancel(sale)}
-                                    >
-                                      Annuler
-                                    </Button>
-                                  </>
-                                )}
-                                {sale.status === "COMPLETED" && sale.change !== undefined && (
-                                  <span className="text-xs text-[#9CA3AF] w-full sm:w-auto text-right mt-1 sm:mt-0">
-                                    Rendu : {formatCurrency(sale.change)}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                          </motion.tr>
-                        );
-                      })}
-                    </AnimatePresence>
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                                <Button size="sm" className="rounded-xl shadow-sm" onClick={() => setSaleToClose(sale)}>
+                                  Clôturer
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm backdrop-blur-sm hover:border-rose-300 hover:bg-rose-500/12"
+                                  onClick={() => setSaleToCancel(sale)}
+                                >
+                                  Annuler
+                                </Button>
+                              </>
+                            )}
+                            {sale.status === "COMPLETED" && sale.change !== undefined && (
+                              <span className="w-full text-right text-xs text-slate-400 sm:mt-0 sm:w-auto">
+                                Rendu : {formatCurrency(sale.change)}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </AnimatePresence>
+              </tbody>
+            </table>
+          </div>
+        </PremiumTableShell>
       </motion.div>
 
       <PaginationControls

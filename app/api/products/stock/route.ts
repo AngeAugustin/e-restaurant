@@ -57,7 +57,9 @@ export async function GET() {
     const totalSold = soldMap.get(id) ?? 0;
     const latest = latestMap.get(id);
     const hasLatest = latest && latest.totalUnits > 0;
-    const marketSellingPrice = hasLatest ? latest.marketSellingPrice : p.sellingPrice;
+    const marketSellingPrice = hasLatest
+      ? latest.marketSellingPrice
+      : (p as { defaultMarketSellingPrice?: number }).defaultMarketSellingPrice ?? p.sellingPrice;
     const purchaseUnitCost = hasLatest ? latest.totalCost / latest.totalUnits : 0;
     return {
       ...p,

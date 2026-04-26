@@ -43,7 +43,7 @@ const navItems = [
   { href: "/tables", label: "Tables", icon: Table2, roles: ["directeur"] },
   { href: "/analytics", label: "Analytiques", icon: BarChart3, roles: ["directeur"] },
   { href: "/users", label: "Utilisateurs", icon: Users, roles: ["directeur"] },
-  { href: "/settings", label: "Paramètres", icon: Settings2, roles: ["directeur", "gerant"] },
+  { href: "/settings", label: "Paramètres", icon: Settings2, roles: ["directeur"] },
 ];
 
 export function Sidebar() {
@@ -152,20 +152,29 @@ export function Sidebar() {
       <div className={cn("border-t border-white/10 py-4", collapsed ? "px-2" : "px-3")}>
         <div
           className={cn(
-            "flex items-center py-2",
-            collapsed ? "flex-col gap-2 px-0" : "gap-2 px-3",
+            "flex py-2",
+            collapsed ? "flex-col items-center gap-2 px-0" : "items-center gap-2 px-3",
             !collapsed && "justify-between"
           )}
         >
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white">
-            {getInitials(firstName ?? "U", lastName ?? "")}
-          </div>
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-white">{name}</p>
-              <p className="text-[10px] capitalize text-white/40">{role}</p>
+          <Link
+            href="/profile"
+            className={cn(
+              "flex min-w-0 items-center gap-2 rounded-lg py-1 transition-colors hover:bg-white/10",
+              collapsed ? "justify-center px-1" : "flex-1 px-1"
+            )}
+            title={collapsed ? "Mon profil" : undefined}
+          >
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white">
+              {getInitials(firstName ?? "U", lastName ?? "")}
             </div>
-          )}
+            {!collapsed && (
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-white">{name}</p>
+                <p className="text-[10px] capitalize text-white/40">{role}</p>
+              </div>
+            )}
+          </Link>
           <Button
             type="button"
             variant="ghost"

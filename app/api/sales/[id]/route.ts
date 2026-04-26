@@ -6,7 +6,7 @@ import Supply from "@/models/Supply";
 import Product from "@/models/Product";
 import { getProductStock } from "@/lib/inventory";
 import { resolveSaleLinePricing } from "@/lib/sale-pricing";
-import { notifyLowStockAfterSaleIfNeeded } from "@/lib/stock-alerts";
+import { notifyLowStockAfterCompletedSale } from "@/lib/stock-alerts";
 import {
   parseTableIdsFromRequestBody,
   pendingSaleUsesAnyTableFilter,
@@ -103,19 +103,25 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await sale.save();
 
     const saleId = sale._id.toString();
-    await Promise.all(
+    const lowStockLines = await Promise.all(
       sale.items.map(async (item) => {
         const productId = item.product.toString();
         const previousStock = await getProductStock(productId, { excludeSaleId: saleId });
         const newStock = previousStock - item.quantity;
-        const productDoc = await Product.findById(productId).select("name").lean();
-        const productName = productDoc?.name ?? "Produit";
-        await notifyLowStockAfterSaleIfNeeded({
-          productName,
+        const productDoc = await Product.findById(productId)
+          .select("name category image")
+          .lean();
+        return {
+          productName: productDoc?.name ?? "Produit",
+          productCategory: productDoc?.category,
+          productImage: productDoc?.image,
+          stockBeforeSale: previousStock,
           stockAfterSale: newStock,
-        });
+          quantitySold: item.quantity,
+        };
       })
     );
+    await notifyLowStockAfterCompletedSale({ saleId, lines: lowStockLines });
   } else {
     // Update pending sale (waitress, tables, items)
     const { waitressId, items } = body;

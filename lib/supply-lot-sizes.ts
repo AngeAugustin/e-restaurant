@@ -1,5 +1,5 @@
-/** Tailles de lot autorisées pour un approvisionnement */
-export const SUPPLY_LOT_SIZES = [3, 6, 12, 24] as const;
+/** Tailles de casier autorisées pour un approvisionnement (l’option 3 n’est plus proposée) */
+export const SUPPLY_LOT_SIZES = [6, 12, 24] as const;
 
 export function isStandardSupplyLotSize(n: number): boolean {
   return (SUPPLY_LOT_SIZES as readonly number[]).includes(n);

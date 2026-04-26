@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import Product from "@/models/Product";
 import { isValidProductCategory } from "@/lib/product-categories";
+import { marketPriceAboveCatalogError } from "@/lib/product-market-price";
 
 export async function GET() {
   const { error } = await requireAuth();
@@ -20,10 +21,20 @@ export async function POST(req: NextRequest) {
   await connectDB();
 
   const body = await req.json();
-  const { name, image, sellingPrice, category } = body;
+  const { name, image, sellingPrice, category, defaultMarketSellingPrice } = body;
 
-  if (!name || sellingPrice === undefined || !category) {
-    return NextResponse.json({ error: "Nom, catégorie et prix requis" }, { status: 400 });
+  if (!name || sellingPrice === undefined || defaultMarketSellingPrice === undefined || !category) {
+    return NextResponse.json(
+      { error: "Nom, catégorie, prix SOBEBRA et prix de vente marché requis" },
+      { status: 400 }
+    );
+  }
+
+  const sobebra = Number(sellingPrice);
+  const marketDef = Number(defaultMarketSellingPrice);
+  const priceErr = marketPriceAboveCatalogError(sobebra, marketDef);
+  if (priceErr) {
+    return NextResponse.json({ error: priceErr }, { status: 400 });
   }
 
   if (!isValidProductCategory(category)) {
@@ -39,7 +50,8 @@ export async function POST(req: NextRequest) {
     name: name.trim(),
     category,
     image: image || "",
-    sellingPrice: Number(sellingPrice),
+    sellingPrice: sobebra,
+    defaultMarketSellingPrice: marketDef,
   });
 
   return NextResponse.json(product, { status: 201 });

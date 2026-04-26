@@ -5,7 +5,10 @@ export interface IProductDocument extends Document {
   name: string;
   category: string;
   image?: string;
+  /** Prix catalogue SOBEBRA (référence, toujours inférieur au prix marché) */
   sellingPrice: number;
+  /** Prix de vente unitaire marché par défaut (prérempli à l’appro ; modifiable) */
+  defaultMarketSellingPrice?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,22 +37,36 @@ const ProductSchema = new Schema<IProductDocument>(
       min: [0, "Le prix ne peut pas être négatif"],
       default: 0,
     },
+    defaultMarketSellingPrice: {
+      type: Number,
+      min: [0, "Le prix marché ne peut pas être négatif"],
+    },
   },
   { timestamps: true }
 );
 
 const existingModel = mongoose.models.Product as Model<IProductDocument> | undefined;
 
-if (existingModel && !existingModel.schema.path("category")) {
-  // En dev, le modèle peut rester en cache sans le nouveau champ.
-  existingModel.schema.add({
-    category: {
-      type: String,
-      enum: PRODUCT_CATEGORIES,
-      default: DEFAULT_PRODUCT_CATEGORY,
-      trim: true,
-    },
-  });
+if (existingModel) {
+  // En dev, le modèle peut rester en cache sans les nouveaux champs.
+  if (!existingModel.schema.path("category")) {
+    existingModel.schema.add({
+      category: {
+        type: String,
+        enum: PRODUCT_CATEGORIES,
+        default: DEFAULT_PRODUCT_CATEGORY,
+        trim: true,
+      },
+    });
+  }
+  if (!existingModel.schema.path("defaultMarketSellingPrice")) {
+    existingModel.schema.add({
+      defaultMarketSellingPrice: {
+        type: Number,
+        min: [0, "Le prix marché ne peut pas être négatif"],
+      },
+    });
+  }
 }
 
 const Product: Model<IProductDocument> =

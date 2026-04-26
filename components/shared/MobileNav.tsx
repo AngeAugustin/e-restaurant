@@ -25,7 +25,7 @@ const navItems = [
   { href: "/tables", label: "Tables", icon: Table2, roles: ["directeur"] },
   { href: "/analytics", label: "Stats", icon: BarChart3, roles: ["directeur"] },
   { href: "/users", label: "Équipe", icon: Users, roles: ["directeur"] },
-  { href: "/settings", label: "Réglages", icon: Settings2, roles: ["directeur", "gerant"] },
+  { href: "/settings", label: "Réglages", icon: Settings2, roles: ["directeur"] },
 ];
 
 export function MobileNav() {

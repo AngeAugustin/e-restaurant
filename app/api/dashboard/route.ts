@@ -6,6 +6,8 @@ import Product from "@/models/Product";
 import Supply from "@/models/Supply";
 import "@/models/Waitress";
 import "@/models/RestaurantTable";
+import AppSetting from "@/models/AppSetting";
+import { GLOBAL_SETTINGS_KEY, normalizeLowStockAlertThreshold } from "@/lib/app-settings";
 import { startOfDay, subDays, format } from "date-fns";
 import type { Types } from "mongoose";
 
@@ -27,6 +29,7 @@ export async function GET() {
     soldRows,
     productsLite,
     recentSales,
+    settingsDoc,
   ] = await Promise.all([
     Sale.aggregate<{ revenue: number; count: number }>([
       { $match: { status: "COMPLETED", createdAt: { $gte: today } } },
@@ -87,6 +90,7 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .limit(5)
       .lean(),
+    AppSetting.findOne({ key: GLOBAL_SETTINGS_KEY }).select("lowStockAlertThreshold").lean(),
   ]);
 
   const todayRevenue = todayStats[0]?.revenue ?? 0;
@@ -101,6 +105,9 @@ export async function GET() {
 
   const suppliedMap = new Map(suppliedRows.map((r) => [r._id.toString(), r.total]));
   const soldMap = new Map(soldRows.map((r) => [r._id.toString(), r.total]));
+  const lowStockThreshold = normalizeLowStockAlertThreshold(
+    settingsDoc?.lowStockAlertThreshold
+  );
   let lowStockCount = 0;
   const lowStockProducts: Array<{ id: string; name: string; image?: string; stock: number; sellingPrice: number }> =
     [];
@@ -108,7 +115,7 @@ export async function GET() {
     const supplied = suppliedMap.get(p._id.toString()) ?? 0;
     const sold = soldMap.get(p._id.toString()) ?? 0;
     const stock = supplied - sold;
-    if (stock < 5) {
+    if (stock <= lowStockThreshold) {
       lowStockCount++;
       lowStockProducts.push({
         id: p._id.toString(),

@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Download, Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDateTime, formatSalePaymentLabel } from "@/lib/utils";
@@ -8,17 +9,34 @@ import { exportElementToPdf } from "@/lib/receipt-pdf";
 import type { ISale } from "@/types";
 import { formatSaleTablesLine } from "@/lib/sale-tables";
 import { toast } from "@/hooks/use-toast";
+import { DEFAULT_LOGO_URL, DEFAULT_SOLUTION_NAME } from "@/lib/app-settings";
+import { saleTicketDisplayId } from "@/lib/sale-ticket-id";
 
-const BUSINESS = "e-Restaurant";
+const VENUE_LINE = "Bar Restaurant";
 
-function ticketId(saleId: string): string {
-  const clean = String(saleId).replace(/\s/g, "");
-  return clean.length > 10 ? clean.slice(-10).toUpperCase() : clean.toUpperCase();
+async function fetchBranding(): Promise<{ logoUrl: string; solutionName: string }> {
+  const res = await fetch("/api/settings");
+  if (!res.ok) throw new Error("settings");
+  return res.json();
 }
 
 export function SaleReceiptPreview({ sale }: { sale: ISale }) {
   const receiptRef = useRef<HTMLDivElement>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [logoBroken, setLogoBroken] = useState(false);
+
+  const { data: branding } = useQuery({
+    queryKey: ["settings"],
+    queryFn: fetchBranding,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const logoUrl = !logoBroken && branding?.logoUrl ? branding.logoUrl : DEFAULT_LOGO_URL;
+  const solutionName = branding?.solutionName?.trim() ? branding.solutionName : DEFAULT_SOLUTION_NAME;
+
+  useEffect(() => {
+    if (branding?.logoUrl) setLogoBroken(false);
+  }, [branding?.logoUrl]);
 
   const waitress = sale.waitress as { firstName?: string; lastName?: string };
   const tableLabel = formatSaleTablesLine(sale);
@@ -38,7 +56,7 @@ export function SaleReceiptPreview({ sale }: { sale: ISale }) {
     }
     setPdfLoading(true);
     try {
-      await exportElementToPdf(el, `ticket-${ticketId(sale._id)}`);
+      await exportElementToPdf(el, `ticket-${saleTicketDisplayId(sale._id)}`);
       toast({ title: "Téléchargement", description: "Le ticket a été enregistré au format PDF." });
     } catch {
       toast({ variant: "destructive", title: "Erreur", description: "Impossible de générer le PDF." });
@@ -87,8 +105,16 @@ export function SaleReceiptPreview({ sale }: { sale: ISale }) {
         }}
       >
         <div className="text-center">
-          <p className="text-[15px] font-extrabold tracking-[0.2em] text-[#0D0D0D]">{BUSINESS}</p>
-          <p className="mt-0.5 text-[9px] uppercase tracking-widest text-[#6B7280]">Ticket de caisse</p>
+          <div className="mx-auto mb-2 flex min-h-[48px] items-center justify-center">
+            <img
+              src={logoUrl}
+              alt=""
+              className="max-h-[52px] w-auto max-w-[200px] object-contain object-center"
+              onError={() => setLogoBroken(true)}
+            />
+          </div>
+          <p className="text-[14px] font-extrabold leading-tight text-[#0D0D0D]">{solutionName}</p>
+          <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6B7280]">{VENUE_LINE}</p>
         </div>
 
         <div className="my-3 border-t border-dashed border-[#0D0D0D]/35" />
@@ -100,7 +126,7 @@ export function SaleReceiptPreview({ sale }: { sale: ISale }) {
           </div>
           <div className="flex justify-between gap-2">
             <span className="text-[#6B7280]">N° ticket</span>
-            <span className="font-semibold tracking-wide text-[#111]">{ticketId(sale._id)}</span>
+            <span className="font-semibold tracking-wide text-[#111]">{saleTicketDisplayId(sale._id)}</span>
           </div>
           <div className="flex justify-between gap-2">
             <span className="text-[#6B7280]">{tableHeading}</span>

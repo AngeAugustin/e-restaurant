@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, UserRound, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, UserRound, Eye, Phone, CalendarClock } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { PaginationControls } from "@/components/shared/PaginationControls";
+import { PremiumTableShell, premiumTableSelectClass } from "@/components/shared/PremiumTableShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -207,12 +208,12 @@ export default function WaitressesPage() {
         transition={{ duration: 0.35, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
       >
         <div className="mb-3 flex justify-end">
-          <label className="inline-flex items-center gap-2 text-xs text-[#6B7280]">
-            Cartes par page
+          <label className="inline-flex items-center gap-2 text-xs text-slate-500">
+            Lignes par page
             <select
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value) as (typeof PAGE_SIZE_OPTIONS)[number])}
-              className="h-8 rounded-md border border-[#E5E7EB] bg-white px-2 text-xs text-[#0D0D0D] outline-none transition-colors focus:border-[#0D0D0D]"
+              className={premiumTableSelectClass}
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>
@@ -222,94 +223,108 @@ export default function WaitressesPage() {
             </select>
           </label>
         </div>
-        <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9CA3AF]">
-          Équipe
-        </p>
 
-        {isLoading ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-[132px] rounded-2xl" />
-            ))}
-          </div>
-        ) : waitresses?.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[#E5E5E5] bg-white/60 py-16 text-center">
-            <p className="text-sm text-[#9CA3AF]">Aucune serveuse enregistrée</p>
-            <Button variant="link" className="mt-2 h-auto p-0 text-[#0D0D0D]" onClick={openCreate}>
+        <PremiumTableShell
+          title="Équipe de salle"
+          isLoading={isLoading}
+          empty={!isLoading && (waitresses?.length === 0)}
+          emptyMessage="Aucune serveuse enregistrée"
+          emptyAction={
+            <Button variant="link" className="h-auto p-0 text-slate-900 underline-offset-4 hover:underline" onClick={openCreate}>
               Ajouter la première
             </Button>
+          }
+          skeletonRows={6}
+          tableMinWidthClass="min-w-[720px]"
+          skeletonColSpan={4}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200/70 bg-slate-950/[0.025] text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <th className="whitespace-nowrap px-6 py-3.5 font-semibold">Serveuse</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Téléphone</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Inscription</th>
+                  <th className="whitespace-nowrap px-6 py-3.5 text-right font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/90">
+                {paginatedWaitresses.map((w) => (
+                  <tr
+                    key={w._id}
+                    className="group transition-colors duration-200 hover:bg-gradient-to-r hover:from-violet-500/[0.04] hover:via-transparent hover:to-cyan-500/[0.03]"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-800/90 to-slate-600/80 shadow-inner ring-1 ring-white/25">
+                          <span className="text-xs font-bold tracking-tight text-white">
+                            {getInitials(w.firstName, w.lastName)}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-slate-900">
+                            {w.firstName} {w.lastName}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      {w.phone ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/50 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-900/90">
+                          <Phone className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+                          {w.phone}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/55 bg-amber-400/10 px-2.5 py-0.5 text-xs font-medium text-amber-950/80">
+                        <CalendarClock className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+                        {formatDate(w.createdAt)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="inline-flex items-center justify-end gap-1 opacity-90 transition group-hover:opacity-100">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-xl border-slate-200/80 bg-white/80 text-slate-700 shadow-sm backdrop-blur-sm transition hover:border-violet-200 hover:bg-violet-500/8 hover:text-violet-900"
+                          asChild
+                        >
+                          <Link href={`/waitresses/${w._id}`} aria-label={`Voir ${w.firstName} ${w.lastName}`}>
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-xl border-slate-200/80 bg-white/80 text-slate-700 shadow-sm backdrop-blur-sm transition hover:border-violet-200 hover:bg-violet-500/8 hover:text-violet-900"
+                          onClick={() => openEdit(w)}
+                          aria-label={`Modifier ${w.firstName} ${w.lastName}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm backdrop-blur-sm transition hover:border-rose-300 hover:bg-rose-500/12 hover:text-rose-700"
+                          onClick={() => setWaitressPendingDelete(w)}
+                          aria-label={`Supprimer ${w.firstName} ${w.lastName}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {paginatedWaitresses.map((w, i) => (
-              <motion.article
-                key={w._id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.32), ease: [0.22, 1, 0.36, 1] }}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-[#E8E8E8] bg-white p-[14px] shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-[#D4D4D4] hover:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.1)]"
-              >
-                <div className="absolute left-0 top-0 h-full w-[3px] bg-[#0D0D0D] opacity-[0.08]" aria-hidden />
-
-                <div className="flex items-start gap-3 pl-0.5">
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0D0D0D] text-[10px] font-semibold tracking-tight text-white"
-                    aria-hidden
-                  >
-                    {getInitials(w.firstName, w.lastName)}
-                  </div>
-                  <div className="min-w-0 flex-1 pt-0.5">
-                    <h3 className="truncate text-[13px] font-semibold leading-snug tracking-tight text-[#0D0D0D]">
-                      {w.firstName} {w.lastName}
-                    </h3>
-                    <p className="mt-1 truncate text-[11px] leading-snug text-[#737373]">
-                      {w.phone ?? "Pas de téléphone"}
-                    </p>
-                    <p className="mt-2.5 text-[10px] font-medium uppercase tracking-[0.14em] text-[#B4B4B4]">
-                      Depuis {formatDate(w.createdAt)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-3.5 flex justify-end gap-0.5 border-t border-[#F0F0F0] pt-2.5">
-                  <Button
-                    asChild
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-[#6B7280] hover:bg-[#F5F5F5] hover:text-[#0D0D0D]"
-                  >
-                    <Link href={`/waitresses/${w._id}`} aria-label={`Voir ${w.firstName} ${w.lastName}`} title="Détails">
-                      <Eye className="h-3.5 w-3.5" />
-                    </Link>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-[#6B7280] hover:bg-[#F5F5F5] hover:text-[#0D0D0D]"
-                    onClick={() => openEdit(w)}
-                    aria-label={`Modifier ${w.firstName} ${w.lastName}`}
-                    title="Modifier"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-[#9CA3AF] hover:bg-red-50 hover:text-red-600"
-                    onClick={() => setWaitressPendingDelete(w)}
-                    aria-label={`Supprimer ${w.firstName} ${w.lastName}`}
-                    title="Supprimer"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </motion.article>
-            ))}
-          </div>
-        )}
+        </PremiumTableShell>
       </motion.section>
 
       <PaginationControls

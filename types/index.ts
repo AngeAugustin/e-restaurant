@@ -18,6 +18,8 @@ export interface IProduct {
   category?: string;
   image?: string;
   sellingPrice: number;
+  /** Prix marché par défaut pour l’approvisionnement (strictement supérieur au prix SOBEBRA) */
+  defaultMarketSellingPrice?: number;
   stock: number;
   createdAt: string;
   updatedAt: string;

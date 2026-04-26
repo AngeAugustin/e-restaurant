@@ -4,14 +4,14 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, Table2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Table2, CalendarClock } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { PaginationControls } from "@/components/shared/PaginationControls";
+import { PremiumTableShell, premiumTableSelectClass } from "@/components/shared/PremiumTableShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -150,7 +150,7 @@ function TableDialog({
 }
 
 export default function TablesPage() {
-  const PAGE_SIZE = 12;
+  const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
   const { data: session, status } = useSession();
   const qc = useQueryClient();
 
@@ -162,6 +162,7 @@ export default function TablesPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [edit, setEdit] = useState<IRestaurantTable | undefined>();
   const [tablePendingDelete, setTablePendingDelete] = useState<IRestaurantTable | null>(null);
 
@@ -192,12 +193,16 @@ export default function TablesPage() {
   const count = tables?.length ?? 0;
   const occupied = tables?.filter((t) => t.occupiedByPendingSaleId).length ?? 0;
   const sortedTables = (tables ?? []).slice().sort((a, b) => a.number - b.number);
-  const paginatedTables = sortedTables.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const totalPages = Math.max(1, Math.ceil(sortedTables.length / PAGE_SIZE));
+  const paginatedTables = sortedTables.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.max(1, Math.ceil(sortedTables.length / pageSize));
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageSize]);
 
   if (status === "loading") return <Skeleton className="h-96" />;
   if (session?.user?.role !== "directeur") {
@@ -217,7 +222,7 @@ export default function TablesPage() {
         }
       />
 
-      <div className="mb-10 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mb-8 grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
         {isLoading ? (
           <>
             <Skeleton className="h-28 rounded-2xl" />
@@ -231,120 +236,129 @@ export default function TablesPage() {
         )}
       </div>
 
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.3, delay: 0.2 }}
       >
-        <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9CA3AF]">
-          Plan de salle
-        </p>
+        <div className="mb-3 flex justify-end">
+          <label className="inline-flex items-center gap-2 text-xs text-slate-500">
+            Lignes par page
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value) as (typeof PAGE_SIZE_OPTIONS)[number])}
+              className={premiumTableSelectClass}
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
 
-        {isLoading ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-[148px] rounded-2xl" />
-            ))}
-          </div>
-        ) : tables?.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[#E5E5E5] bg-white/60 py-16 text-center">
-            <p className="text-sm text-[#9CA3AF]">Aucune table configurée</p>
-            <Button variant="link" className="mt-2 h-auto p-0 text-[#0D0D0D]" onClick={openCreate}>
+        <PremiumTableShell
+          title="Plan de salle"
+          isLoading={isLoading}
+          empty={!isLoading && (tables?.length === 0)}
+          emptyMessage="Aucune table configurée"
+          emptyAction={
+            <Button variant="link" className="h-auto p-0 text-slate-900 underline-offset-4 hover:underline" onClick={openCreate}>
               Créer une table
             </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {paginatedTables.map((t, i) => (
-                <motion.article
-                  key={t._id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.32), ease: [0.22, 1, 0.36, 1] }}
-                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-[#E7EAEE] bg-gradient-to-b from-white to-[#FBFCFD] p-4 shadow-[0_6px_26px_-22px_rgba(0,0,0,0.35)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-[1px] hover:border-[#D9DEE5] hover:shadow-[0_14px_32px_-18px_rgba(0,0,0,0.38)]"
-                >
-                  <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#F8FAFC] to-transparent" aria-hidden />
-
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex items-center gap-2">
-                      <span className="inline-flex h-6 items-center rounded-full bg-[#111827] px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
-                        Table {t.number}
-                      </span>
-                      {t.occupiedByPendingSaleId ? (
-                        <Badge
-                          variant="outline"
-                          className="rounded-full border-transparent bg-[#EEF2FF] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#4338CA]"
-                        >
-                          Occupée
-                        </Badge>
+          }
+          skeletonColSpan={5}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200/70 bg-slate-950/[0.025] text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <th className="whitespace-nowrap px-6 py-3.5 font-semibold">Table</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Capacité</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Statut</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Ajoutée le</th>
+                  <th className="whitespace-nowrap px-6 py-3.5 text-right font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/90">
+                {paginatedTables.map((t) => (
+                  <tr
+                    key={t._id}
+                    className="group transition-colors duration-200 hover:bg-gradient-to-r hover:from-violet-500/[0.04] hover:via-transparent hover:to-cyan-500/[0.03]"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-800/90 to-slate-600/80 shadow-inner ring-1 ring-white/25">
+                          <span className="text-xs font-bold tracking-tight text-white">{t.number}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-slate-900">{t.name ?? `Table ${t.number}`}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      {t.capacity != null ? (
+                        <span className="inline-flex items-center rounded-full border border-emerald-200/50 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-900/90">
+                          {t.capacity} place{t.capacity > 1 ? "s" : ""}
+                        </span>
                       ) : (
-                        <Badge
-                          variant="outline"
-                          className="rounded-full border-transparent bg-[#ECFDF3] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#047857]"
-                        >
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      {t.occupiedByPendingSaleId ? (
+                        <span className="inline-flex items-center rounded-full border border-violet-200/60 bg-violet-500/12 px-2.5 py-0.5 text-xs font-semibold text-violet-800 backdrop-blur-[2px]">
+                          Occupée
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full border border-sky-200/60 bg-sky-500/12 px-2.5 py-0.5 text-xs font-semibold text-sky-900 backdrop-blur-[2px]">
                           Libre
-                        </Badge>
+                        </span>
                       )}
-                    </div>
-                  </div>
-
-                  <div className="mt-3.5">
-                    <h3 className="truncate text-[15px] font-semibold tracking-tight text-[#111827]">
-                      {t.name ?? `Table ${t.number}`}
-                    </h3>
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <Badge variant="secondary" className="rounded-full bg-[#F3F4F6] text-[#374151]">
-                        {t.capacity ?? "—"} place{(t.capacity ?? 0) > 1 ? "s" : ""}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="rounded-full border-[#E5E7EB] bg-white text-[#6B7280]"
-                      >
-                        Ajoutée le {formatDate(t.createdAt)}
-                      </Badge>
-                      {t.occupiedByPendingSaleId && (
-                        <Badge
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/55 bg-amber-400/10 px-2.5 py-0.5 text-xs font-medium text-amber-950/80">
+                        <CalendarClock className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+                        {formatDate(t.createdAt)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="inline-flex items-center justify-end gap-1 opacity-90 transition group-hover:opacity-100">
+                        <Button
+                          type="button"
                           variant="outline"
-                          className="rounded-full border-[#E5E7EB] bg-white text-[#6B7280]"
+                          size="icon"
+                          className="h-9 w-9 rounded-xl border-slate-200/80 bg-white/80 text-slate-700 shadow-sm backdrop-blur-sm transition hover:border-violet-200 hover:bg-violet-500/8 hover:text-violet-900"
+                          onClick={() => openEdit(t)}
+                          aria-label={`Modifier ${t.name ?? `table ${t.number}`}`}
                         >
-                          Commande en cours
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex justify-end gap-1.5 border-t border-[#EEF0F3] pt-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 rounded-full border-[#E5E7EB] bg-white px-3 text-[12px] font-medium text-[#4B5563] hover:bg-[#F9FAFB] hover:text-[#111827]"
-                      onClick={() => openEdit(t)}
-                    >
-                      <Pencil className="mr-1.5 h-3 w-3" />
-                      Modifier
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 rounded-full border-[#F2D7D7] bg-white px-3 text-[12px] font-medium text-[#9CA3AF] hover:bg-red-50 hover:text-red-600"
-                      onClick={() => setTablePendingDelete(t)}
-                    >
-                      <Trash2 className="mr-1.5 h-3 w-3" />
-                      Supprimer
-                    </Button>
-                  </div>
-                </motion.article>
-            ))}
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm backdrop-blur-sm transition hover:border-rose-300 hover:bg-rose-500/12 hover:text-rose-700"
+                          onClick={() => setTablePendingDelete(t)}
+                          aria-label={`Supprimer ${t.name ?? `table ${t.number}`}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </motion.section>
+        </PremiumTableShell>
+      </motion.div>
 
       <PaginationControls
         className="mt-6"
         currentPage={currentPage}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         totalItems={sortedTables.length}
         onPageChange={setCurrentPage}
       />

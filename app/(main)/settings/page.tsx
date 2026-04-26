@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import {
   applyPrimaryColorToDocument,
   DEFAULT_LOGO_URL,
+  DEFAULT_LOW_STOCK_ALERT_THRESHOLD,
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_SOLUTION_NAME,
   normalizeHexColor,
@@ -25,6 +26,7 @@ type SettingsResponse = {
   logoUrl: string;
   solutionName: string;
   lowStockAlertEmails: string[];
+  lowStockAlertThreshold: number;
 };
 
 type SettingsTab = "customization" | "alerts";
@@ -63,6 +65,12 @@ export default function SettingsPage() {
   const [solutionNameDraft, setSolutionNameDraft] = useState(DEFAULT_SOLUTION_NAME);
   const [settingsInitialized, setSettingsInitialized] = useState(false);
   const [alertEmailFields, setAlertEmailFields] = useState<AlertEmailField[]>([createAlertEmailField()]);
+  const [lowStockThresholdDraft, setLowStockThresholdDraft] = useState(
+    String(DEFAULT_LOW_STOCK_ALERT_THRESHOLD)
+  );
+  const [lowStockThresholdSaved, setLowStockThresholdSaved] = useState(
+    DEFAULT_LOW_STOCK_ALERT_THRESHOLD
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ["app-settings"],
@@ -85,6 +93,10 @@ export default function SettingsPage() {
         ? data.lowStockAlertEmails.map((email) => createAlertEmailField(email, true))
         : [createAlertEmailField()]
     );
+    const thr =
+      typeof data.lowStockAlertThreshold === "number" ? data.lowStockAlertThreshold : DEFAULT_LOW_STOCK_ALERT_THRESHOLD;
+    setLowStockThresholdSaved(thr);
+    setLowStockThresholdDraft(String(thr));
     applyPrimaryColorToDocument(data.primaryColor);
     setSettingsInitialized(true);
   }, [data, settingsInitialized]);
@@ -109,6 +121,34 @@ export default function SettingsPage() {
       setAppliedColor(payload.primaryColor);
       setSavedColor(payload.primaryColor);
       toast({ variant: "success", title: "Couleur principale mise à jour" });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: err.message });
+    },
+  });
+
+  const saveLowStockThresholdMutation = useMutation({
+    mutationFn: async (value: number) => {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lowStockAlertThreshold: value }),
+      });
+      if (!res.ok) {
+        const err = (await res.json()) as { error?: string };
+        throw new Error(err.error ?? "Impossible d'enregistrer le seuil");
+      }
+      return (await res.json()) as SettingsResponse;
+    },
+    onSuccess: (payload) => {
+      qc.setQueryData(["app-settings"], payload);
+      const t =
+        typeof payload.lowStockAlertThreshold === "number"
+          ? payload.lowStockAlertThreshold
+          : DEFAULT_LOW_STOCK_ALERT_THRESHOLD;
+      setLowStockThresholdSaved(t);
+      setLowStockThresholdDraft(String(t));
+      toast({ variant: "success", title: "Seuil d'alerte mis à jour" });
     },
     onError: (err: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: err.message });
@@ -208,6 +248,15 @@ export default function SettingsPage() {
   const hasUnsavedColor = selectedColor !== savedColor;
   const canSaveSolutionName =
     canManageAlerts && solutionNameDraft.trim().length > 0 && solutionNameDraft.trim() !== solutionName;
+
+  const parsedThresholdDraft = Number.parseInt(lowStockThresholdDraft.trim(), 10);
+  const isValidThresholdDraft =
+    /^\d{1,3}$/.test(lowStockThresholdDraft.trim()) && parsedThresholdDraft >= 0 && parsedThresholdDraft <= 999;
+  const canSaveLowStockThreshold =
+    canManageAlerts &&
+    isValidThresholdDraft &&
+    parsedThresholdDraft !== lowStockThresholdSaved &&
+    !saveLowStockThresholdMutation.isPending;
 
   const addAlertEmailField = () => {
     setAlertEmailFields((prev) => [...prev, createAlertEmailField()]);
@@ -494,81 +543,140 @@ export default function SettingsPage() {
           </Card>
         </div>
       ) : (
-        <Card>
-          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-1.5">
-              <CardTitle>Destinataires email des alertes de stock bas</CardTitle>
+        <div className="space-y-6">
+          <Card className="min-w-0">
+            <CardHeader>
+              <CardTitle>Seuil d&apos;alerte</CardTitle>
               <CardDescription>
-                Entrez les adresses email qui recevront les notifications quand un produit passe en stock bas.
+                Une alerte est déclenchée lorsque le stock d&apos;un produit est inférieur ou égal à ce seuil
+                (après une vente, sur le tableau de bord et sur la fiche produits).
               </CardDescription>
-            </div>
-            <Button type="button" variant="outline" onClick={addAlertEmailField} disabled={!canManageAlerts}>
-              <Plus className="w-4 h-4" />
-              Ajouter un email
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              {alertEmailFields.map((entry, index) => (
-                <div key={entry.id} className="flex items-center gap-2">
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex max-w-sm flex-col gap-2 sm:flex-row sm:items-end">
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-[#0D0D0D] mb-1.5 block" htmlFor="low-stock-threshold">
+                    Nombre d&apos;unités (0 à 999)
+                  </label>
                   <Input
-                    type="email"
-                    value={entry.value}
-                    placeholder="exemple@domaine.com"
-                    disabled={!canManageAlerts}
-                    onChange={(e) => updateAlertEmailField(entry.id, e.target.value)}
+                    id="low-stock-threshold"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={lowStockThresholdDraft}
+                    onChange={(e) => setLowStockThresholdDraft(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                    disabled={!canManageAlerts || saveLowStockThresholdMutation.isPending}
+                    className="max-w-[120px] bg-white"
+                    placeholder="5"
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    title="Valider"
-                    aria-label={`Valider l'email ${index + 1}`}
-                    disabled={!canManageAlerts}
-                    onClick={() => validateAlertEmailField(entry.id)}
-                  >
-                    <Check className={cn("w-4 h-4", entry.isValidated && "text-green-600")} />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    title="Supprimer"
-                    aria-label={`Supprimer l'email ${index + 1}`}
-                    disabled={!canManageAlerts}
-                    onClick={() => deleteAlertEmailField(entry.id)}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </Button>
                 </div>
-              ))}
-              <p className="text-xs text-[#9CA3AF]">
-                {validatedEmails.length} adresse{validatedEmails.length > 1 ? "s" : ""} validée
-                {validatedEmails.length > 1 ? "s" : ""}.
-              </p>
-            </div>
+                <Button
+                  type="button"
+                  onClick={() => saveLowStockThresholdMutation.mutate(parsedThresholdDraft)}
+                  disabled={!canSaveLowStockThreshold}
+                >
+                  <Save className="w-4 h-4" />
+                  {saveLowStockThresholdMutation.isPending ? "Enregistrement..." : "Enregistrer"}
+                </Button>
+              </div>
+              {!isValidThresholdDraft && lowStockThresholdDraft.trim() !== "" && (
+                <p className="text-xs text-destructive">Saisissez un entier entre 0 et 999.</p>
+              )}
+              {!canManageAlerts && (
+                <p className="text-sm text-[#B45309]">Seul un directeur peut modifier le seuil d&apos;alerte.</p>
+              )}
+            </CardContent>
+          </Card>
 
-            {!canManageAlerts && (
-              <p className="text-sm text-[#B45309]">
-                Seul un utilisateur Directeur peut modifier la liste des destinataires.
-              </p>
-            )}
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          <Card className="min-w-0">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1.5">
+                <CardTitle>Destinataires email des alertes de stock bas</CardTitle>
+                <CardDescription>
+                  Entrez les adresses email qui recevront les notifications quand un produit passe en stock bas.
+                </CardDescription>
+              </div>
+              <Button type="button" variant="outline" onClick={addAlertEmailField} disabled={!canManageAlerts}>
+                <Plus className="w-4 h-4" />
+                Ajouter un email
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                {alertEmailFields.map((entry, index) => (
+                  <div key={entry.id} className="flex items-center gap-2">
+                    <Input
+                      type="email"
+                      value={entry.value}
+                      placeholder="exemple@domaine.com"
+                      disabled={!canManageAlerts}
+                      onChange={(e) => updateAlertEmailField(entry.id, e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      title="Valider"
+                      aria-label={`Valider l'email ${index + 1}`}
+                      disabled={!canManageAlerts}
+                      onClick={() => validateAlertEmailField(entry.id)}
+                    >
+                      <Check className={cn("w-4 h-4", entry.isValidated && "text-green-600")} />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      title="Supprimer"
+                      aria-label={`Supprimer l'email ${index + 1}`}
+                      disabled={!canManageAlerts}
+                      onClick={() => deleteAlertEmailField(entry.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </Button>
+                  </div>
+                ))}
+                <p className="text-xs text-[#9CA3AF]">
+                  {validatedEmails.length} adresse{validatedEmails.length > 1 ? "s" : ""} validée
+                  {validatedEmails.length > 1 ? "s" : ""}.
+                </p>
+              </div>
 
-            <Button
-              type="button"
-              onClick={() => saveAlertsMutation.mutate(validatedEmails)}
-              disabled={!canManageAlerts || saveAlertsMutation.isPending || hasUnvalidatedFilledEmail}
-            >
-              <Save className="w-4 h-4" />
-              {saveAlertsMutation.isPending ? "Enregistrement..." : "Enregistrer les alertes"}
-            </Button>
-            {hasUnvalidatedFilledEmail && (
-              <p className="text-xs text-[#B45309]">
-                Validez chaque email avec l&apos;icône de validation avant d&apos;enregistrer.
+              {!canManageAlerts && (
+                <p className="text-sm text-[#B45309]">
+                  Seul un utilisateur Directeur peut modifier la liste des destinataires.
+                </p>
+              )}
+
+              <Button
+                type="button"
+                onClick={() => saveAlertsMutation.mutate(validatedEmails)}
+                disabled={!canManageAlerts || saveAlertsMutation.isPending || hasUnvalidatedFilledEmail}
+              >
+                <Save className="w-4 h-4" />
+                {saveAlertsMutation.isPending ? "Enregistrement..." : "Enregistrer les alertes"}
+              </Button>
+              {hasUnvalidatedFilledEmail && (
+                <p className="text-xs text-[#B45309]">
+                  Validez chaque email avec l&apos;icône de validation avant d&apos;enregistrer.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="min-w-0">
+            <CardHeader>
+              <CardTitle>Destinataires WhatsApp des alertes de stock</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="rounded-md border border-dashed border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
+                En attente de configuration définitive
               </p>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+          </div>
+        </div>
       )}
     </div>
   );
