@@ -43,9 +43,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import { DEFAULT_PRODUCT_CATEGORY, PRODUCT_CATEGORIES } from "@/lib/product-categories";
 import { DEFAULT_LOW_STOCK_ALERT_THRESHOLD } from "@/lib/app-settings";
+import { resolveCatalogPriceForImport, parsePriceBodyField } from "@/lib/product-market-price";
 
 interface ProductWithStock {
   _id: string;
@@ -54,6 +55,7 @@ interface ProductWithStock {
   image?: string;
   sellingPrice: number;
   defaultMarketSellingPrice?: number;
+  marketSellingPrice: number;
   stock: number;
 }
 
@@ -62,6 +64,7 @@ interface ProductImportPreviewRow {
   name: string;
   category: string | null;
   sellingPrice: number | null;
+  defaultMarketSellingPrice: number | null;
   image: string;
   valid: boolean;
   error?: string;
@@ -198,49 +201,82 @@ function ProductFormDialog({
     const url = product ? `/api/products/${product._id}` : "/api/products";
     const method = product ? "PUT" : "POST";
 
-    const sobebra = parseFloat(form.sellingPrice);
-    if (!Number.isFinite(sobebra) || sobebra < 0) {
-      setIsSubmitting(false);
-      toast({
-        variant: "destructive",
-        title: "Prix invalide",
-        description: "Le prix SOBEBRA doit être un nombre positif.",
-      });
-      return;
-    }
-
+    const trimmedSobe = form.sellingPrice.trim();
     const trimmedMarket = form.defaultMarketSellingPrice.trim();
+    const sobebraRaw = parsePriceBodyField(trimmedSobe);
+    const marketDefRaw = parsePriceBodyField(trimmedMarket);
+
     const body: Record<string, unknown> = {
       name: form.name,
       category: form.category,
       image: imageUrl,
-      sellingPrice: sobebra,
     };
 
     if (!product) {
-      const marketDef = parseFloat(trimmedMarket);
-      if (!trimmedMarket || !Number.isFinite(marketDef) || marketDef <= sobebra) {
+      if (marketDefRaw == null) {
+        setIsSubmitting(false);
+        toast({
+          variant: "destructive",
+          title: "Prix marché requis",
+          description: "Indiquez le prix de vente unitaire marché. Le prix SOBEBRA est optionnel.",
+        });
+        return;
+      }
+      const resolved = resolveCatalogPriceForImport(sobebraRaw, marketDefRaw);
+      if (!resolved) {
         setIsSubmitting(false);
         toast({
           variant: "destructive",
           title: "Prix invalides",
-          description: "Le prix de vente marché doit être strictement supérieur au prix SOBEBRA.",
+          description: "Le prix marché doit être valide. S’il y a un prix SOBEBRA, le marché doit être strictement supérieur.",
         });
         return;
       }
-      body.defaultMarketSellingPrice = marketDef;
-    } else if (trimmedMarket !== "") {
-      const marketDef = parseFloat(trimmedMarket);
-      if (!Number.isFinite(marketDef) || marketDef <= sobebra) {
-        setIsSubmitting(false);
-        toast({
-          variant: "destructive",
-          title: "Prix invalides",
-          description: "Le prix de vente marché doit être strictement supérieur au prix SOBEBRA.",
-        });
-        return;
+      body.sellingPrice = resolved.sellingPrice;
+      body.defaultMarketSellingPrice = resolved.defaultMarketSellingPrice;
+    } else {
+      const m =
+        trimmedMarket !== ""
+          ? marketDefRaw
+          : parsePriceBodyField(product.defaultMarketSellingPrice ?? null);
+      const s = trimmedSobe !== "" ? sobebraRaw : null;
+
+      if (trimmedMarket !== "" || trimmedSobe !== "") {
+        if (m != null && Number.isFinite(m) && m > 0) {
+          const resolved = resolveCatalogPriceForImport(s, m);
+          if (!resolved) {
+            setIsSubmitting(false);
+            toast({
+              variant: "destructive",
+              title: "Prix invalides",
+              description:
+                "Si vous indiquez un prix SOBEBRA, il doit être strictement inférieur au prix marché.",
+            });
+            return;
+          }
+          body.sellingPrice = resolved.sellingPrice;
+          body.defaultMarketSellingPrice = resolved.defaultMarketSellingPrice;
+        } else if (trimmedSobe !== "") {
+          if (sobebraRaw == null) {
+            setIsSubmitting(false);
+            toast({
+              variant: "destructive",
+              title: "Prix SOBEBRA invalide",
+              description: "Saisissez un nombre valide ou laissez vide pour le déduire du marché.",
+            });
+            return;
+          }
+          body.sellingPrice = sobebraRaw;
+        } else if (trimmedMarket !== "") {
+          setIsSubmitting(false);
+          toast({
+            variant: "destructive",
+            title: "Prix marché requis",
+            description: "Indiquez un prix de vente marché valide.",
+          });
+          return;
+        }
       }
-      body.defaultMarketSellingPrice = marketDef;
     }
 
     const res = await fetch(url, {
@@ -338,13 +374,15 @@ function ProductFormDialog({
             <Label>Prix unitaire SOBEBRA (FCFA)</Label>
             <Input
               type="number"
-              placeholder="1500"
+              placeholder="1500 (optionnel)"
               value={form.sellingPrice}
               onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
-              required
               min={0}
             />
-            <p className="text-[11px] text-[#9CA3AF]">Prix catalogue de référence (toujours inférieur au prix marché).</p>
+            <p className="text-[11px] text-[#9CA3AF]">
+              Optionnel à la création : laissé vide ou à 0 lorsque le prix marché dépasse 1 FCFA, le SOBEBRA est
+              déduit (marché − 1). Sinon, il doit rester strictement inférieur au prix marché.
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label>Prix de vente unitaire marché (FCFA)</Label>
@@ -397,8 +435,23 @@ function ProductImportDialog({
     if (!row.category || !PRODUCT_CATEGORIES.includes(row.category as (typeof PRODUCT_CATEGORIES)[number])) {
       errors.push("Catégorie invalide");
     }
-    if (row.sellingPrice === null || !Number.isFinite(row.sellingPrice) || row.sellingPrice < 0) {
-      errors.push("Prix invalide");
+    if (
+      row.defaultMarketSellingPrice === null ||
+      !Number.isFinite(row.defaultMarketSellingPrice) ||
+      row.defaultMarketSellingPrice <= 0
+    ) {
+      errors.push("Prix marché invalide");
+    }
+    if (row.sellingPrice !== null) {
+      if (!Number.isFinite(row.sellingPrice) || row.sellingPrice < 0) {
+        errors.push("Prix SOBEBRA invalide");
+      } else if (
+        row.defaultMarketSellingPrice !== null &&
+        Number.isFinite(row.defaultMarketSellingPrice) &&
+        row.defaultMarketSellingPrice <= row.sellingPrice
+      ) {
+        errors.push("Prix marché <= prix SOBEBRA");
+      }
     }
 
     return {
@@ -431,16 +484,31 @@ function ProductImportDialog({
 
     const res = await fetch("/api/products/import/preview", {
       method: "POST",
+      credentials: "include",
       body: fd,
     });
     setIsAnalyzing(false);
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+      const ct = res.headers.get("content-type") ?? "";
+      let detail = "";
+      if (ct.includes("application/json")) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        detail = (err.error ?? "").trim();
+      } else {
+        const text = await res.text().catch(() => "");
+        detail = text.replace(/\s+/g, " ").trim().slice(0, 220);
+      }
+      const hint =
+        res.status === 401
+          ? "Session expirée ou non connecté. Reconnectez-vous."
+          : res.status === 403
+            ? "Accès refusé : seuls les directeurs peuvent importer."
+            : "Vérifiez le fichier (.xlsx / .xls) et les colonnes requises.";
       toast({
         variant: "destructive",
         title: "Analyse impossible",
-        description: err.error ?? "Vérifiez le format du fichier.",
+        description: [`HTTP ${res.status}`, detail || hint].filter(Boolean).join(" — ").slice(0, 500),
       });
       return;
     }
@@ -454,19 +522,26 @@ function ProductImportDialog({
   const handleCommitImport = async () => {
     if (!preview) return;
     const validRows = previewRows
-      .filter((row) => row.valid && row.category && row.sellingPrice !== null)
-      .map((row) => ({
-        name: row.name,
-        category: row.category as string,
-        sellingPrice: row.sellingPrice as number,
-        image: row.image,
-      }));
+      .filter((row) => row.valid && row.category)
+      .map((row) => {
+        const resolved = resolveCatalogPriceForImport(row.sellingPrice, row.defaultMarketSellingPrice);
+        if (!resolved) return null;
+        return {
+          name: row.name.trim(),
+          category: row.category as string,
+          sellingPrice: resolved.sellingPrice,
+          defaultMarketSellingPrice: resolved.defaultMarketSellingPrice,
+          image: (row.image ?? "").trim(),
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
 
     if (validRows.length === 0) {
       toast({
         variant: "destructive",
         title: "Aucune ligne valide",
-        description: "Corrigez le fichier puis réessayez.",
+        description:
+          "Complétez au minimum le nom, la catégorie et le prix marché. Le prix SOBEBRA et le lien image sont optionnels.",
       });
       return;
     }
@@ -474,6 +549,7 @@ function ProductImportDialog({
     setIsImporting(true);
     const res = await fetch("/api/products/import/commit", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rows: validRows }),
     });
@@ -505,8 +581,9 @@ function ProductImportDialog({
         <DialogHeader>
           <DialogTitle>Importer des produits</DialogTitle>
           <DialogDescription>
-            Importez un fichier Excel ou PDF contenant les colonnes Produit, Catégorie, Prix vente et
-            éventuellement Lien image.
+            Importez un fichier Excel : Produit, Catégorie et prix marché sont requis ; prix SOBEBRA et lien image
+            sont optionnels (SOBEBRA absent = déduction automatique à partir du marché). Vous pouvez corriger le
+            tableau avant validation.
           </DialogDescription>
         </DialogHeader>
 
@@ -514,7 +591,7 @@ function ProductImportDialog({
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
             <Input
               type="file"
-              accept=".xlsx,.xls,.pdf,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              accept=".xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               onChange={(e) => {
                 const picked = e.target.files?.[0] ?? null;
                 setFile(picked);
@@ -526,6 +603,13 @@ function ProductImportDialog({
               {isAnalyzing ? "Analyse..." : "Prévisualiser"}
             </Button>
           </div>
+          <a
+            href="/templates/modele-import-produits.xlsx"
+            download
+            className="inline-flex w-fit text-xs text-[#2563EB] hover:underline"
+          >
+            Télécharger le modèle Excel (.xlsx)
+          </a>
 
           {preview && (
             <div className="rounded-lg border border-[#E5E5E5] overflow-hidden">
@@ -554,14 +638,32 @@ function ProductImportDialog({
                       <th className="text-left px-3 py-2 w-16">Ligne</th>
                       <th className="text-left px-3 py-2">Produit</th>
                       <th className="text-left px-3 py-2">Catégorie</th>
-                      <th className="text-right px-3 py-2 w-32">Prix vente</th>
+                      <th className="text-right px-3 py-2 w-32">Prix SOBEBRA</th>
+                      <th className="text-right px-3 py-2 w-32">Prix marché</th>
                       <th className="text-left px-3 py-2">Lien image</th>
-                      <th className="text-left px-3 py-2 w-48">Statut</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {previewRows.map((row, idx) => (
-                      <tr key={`${row.rowNumber}-${row.name}`} className="border-b border-[#F3F4F6]">
+                    {previewRows.map((row, idx) => {
+                      const categorySelectValue =
+                        row.category &&
+                        PRODUCT_CATEGORIES.includes(row.category as (typeof PRODUCT_CATEGORIES)[number])
+                          ? row.category
+                          : "__none__";
+                      const invalidRow = !row.valid;
+                      const fieldErrorClass = invalidRow
+                        ? "border-red-400 bg-red-50/50 focus-visible:border-red-500 focus-visible:ring-red-200/40"
+                        : "";
+                      return (
+                      <tr
+                        key={row.rowNumber}
+                        className={cn(
+                          "border-b border-[#F3F4F6]",
+                          invalidRow &&
+                            "bg-red-50 border-l-4 border-l-red-500 shadow-[inset_0_1px_0_0_rgba(254,202,202,0.6)]"
+                        )}
+                        title={invalidRow ? row.error : undefined}
+                      >
                         <td className="px-3 py-2">
                           {row.image && !failedImageRows.has(row.rowNumber) ? (
                             <img
@@ -578,59 +680,145 @@ function ProductImportDialog({
                             </div>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-[#6B7280]">
+                        <td
+                          className={cn(
+                            "px-3 py-2 tabular-nums",
+                            invalidRow ? "font-semibold text-red-700" : "text-[#6B7280]"
+                          )}
+                        >
                           <span>{row.rowNumber}</span>
                         </td>
-                        <td className="px-3 py-2">{row.name || "-"}</td>
-                        <td className="px-3 py-2 min-w-[180px]">
-                          {row.category && PRODUCT_CATEGORIES.includes(row.category as (typeof PRODUCT_CATEGORIES)[number]) ? (
-                            row.category
-                          ) : (
-                            <Select
-                              value={row.category ?? "__none__"}
-                              onValueChange={(value) => {
-                                if (value === "__none__") return;
-                                setPreviewRows((prev) =>
-                                  prev.map((r, rIdx) =>
-                                    rIdx === idx ? validateImportRow({ ...r, category: value }) : r
-                                  )
-                                );
-                              }}
-                            >
-                              <SelectTrigger className="h-8 bg-white">
-                                <SelectValue placeholder="Corriger la catégorie" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {PRODUCT_CATEGORIES.map((category) => (
-                                  <SelectItem key={category} value={category}>
-                                    {category}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
+                        <td className="px-3 py-2 min-w-[140px]">
+                          <Input
+                            className={cn("h-8", fieldErrorClass)}
+                            placeholder="Nom du produit"
+                            value={row.name}
+                            onChange={(e) => {
+                              const name = e.target.value;
+                              setPreviewRows((prev) =>
+                                prev.map((r, rIdx) =>
+                                  rIdx === idx ? validateImportRow({ ...r, name }) : r
+                                )
+                              );
+                            }}
+                          />
                         </td>
-                        <td className="px-3 py-2 text-right">
-                          {row.sellingPrice !== null ? row.sellingPrice.toLocaleString("fr-FR") : "-"}
+                        <td className="px-3 py-2 min-w-[200px]">
+                          <Select
+                            value={categorySelectValue}
+                            onValueChange={(value) => {
+                              const category = value === "__none__" ? null : value;
+                              setPreviewRows((prev) =>
+                                prev.map((r, rIdx) =>
+                                  rIdx === idx
+                                    ? validateImportRow({ ...r, category: category as string | null })
+                                    : r
+                                )
+                              );
+                            }}
+                          >
+                            <SelectTrigger className={cn("h-8 bg-white", fieldErrorClass)}>
+                              <SelectValue placeholder="Catégorie" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">Choisir une catégorie</SelectItem>
+                              {PRODUCT_CATEGORIES.map((category) => (
+                                <SelectItem key={category} value={category}>
+                                  {category}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </td>
-                        <td className="px-3 py-2 max-w-[300px] truncate text-[#6B7280]" title={row.image}>
-                          {row.image || "-"}
+                        <td className="px-3 py-2 w-36">
+                          <Input
+                            type="number"
+                            min={0}
+                            step="any"
+                            className={cn("h-8 text-right", fieldErrorClass)}
+                            placeholder="0"
+                            value={
+                              row.sellingPrice !== null && Number.isFinite(row.sellingPrice)
+                                ? String(row.sellingPrice)
+                                : ""
+                            }
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const sellingPrice =
+                                raw.trim() === "" || raw === "-" ? null : Number(raw);
+                              setPreviewRows((prev) =>
+                                prev.map((r, rIdx) =>
+                                  rIdx === idx
+                                    ? validateImportRow({
+                                        ...r,
+                                        sellingPrice:
+                                          sellingPrice !== null && Number.isFinite(sellingPrice)
+                                            ? sellingPrice
+                                            : null,
+                                      })
+                                    : r
+                                )
+                              );
+                            }}
+                          />
                         </td>
-                        <td className="px-3 py-2">
-                          {row.valid ? (
-                            <span className="inline-flex items-center gap-1 text-green-600 font-medium">
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              Prêt
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-red-600 font-medium" title={row.error}>
-                              <XCircle className="w-3.5 h-3.5" />
-                              {row.error ?? "Invalide"}
-                            </span>
-                          )}
+                        <td className="px-3 py-2 w-36">
+                          <Input
+                            type="number"
+                            min={0}
+                            step="any"
+                            className={cn("h-8 text-right", fieldErrorClass)}
+                            placeholder="0"
+                            value={
+                              row.defaultMarketSellingPrice !== null &&
+                              Number.isFinite(row.defaultMarketSellingPrice)
+                                ? String(row.defaultMarketSellingPrice)
+                                : ""
+                            }
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const defaultMarketSellingPrice =
+                                raw.trim() === "" || raw === "-" ? null : Number(raw);
+                              setPreviewRows((prev) =>
+                                prev.map((r, rIdx) =>
+                                  rIdx === idx
+                                    ? validateImportRow({
+                                        ...r,
+                                        defaultMarketSellingPrice:
+                                          defaultMarketSellingPrice !== null &&
+                                          Number.isFinite(defaultMarketSellingPrice)
+                                            ? defaultMarketSellingPrice
+                                            : null,
+                                      })
+                                    : r
+                                )
+                              );
+                            }}
+                          />
+                        </td>
+                        <td className="px-3 py-2 min-w-[200px] max-w-[280px]">
+                          <Input
+                            className={cn("h-8 font-mono text-xs", fieldErrorClass)}
+                            placeholder="https://…"
+                            value={row.image}
+                            onChange={(e) => {
+                              const image = e.target.value;
+                              setFailedImageRows((prev) => {
+                                const next = new Set(prev);
+                                next.delete(row.rowNumber);
+                                return next;
+                              });
+                              setPreviewRows((prev) =>
+                                prev.map((r, rIdx) =>
+                                  rIdx === idx ? validateImportRow({ ...r, image }) : r
+                                )
+                              );
+                            }}
+                          />
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -660,7 +848,7 @@ export default function ProductsPage() {
   const { data: session } = useSession();
   const isDirector = session?.user?.role === "directeur";
   const qc = useQueryClient();
-  const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+  const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100] as const;
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["products"],
@@ -713,8 +901,9 @@ export default function ProductsPage() {
     products?.filter((p) => {
       const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
       const matchesCategory = categoryFilter === "ALL" ? true : p.category === categoryFilter;
-      const matchesMin = minPrice === null || Number.isNaN(minPrice) ? true : p.sellingPrice >= minPrice;
-      const matchesMax = maxPrice === null || Number.isNaN(maxPrice) ? true : p.sellingPrice <= maxPrice;
+      const market = p.marketSellingPrice;
+      const matchesMin = minPrice === null || Number.isNaN(minPrice) ? true : market >= minPrice;
+      const matchesMax = maxPrice === null || Number.isNaN(maxPrice) ? true : market <= maxPrice;
       return matchesSearch && matchesCategory && matchesMin && matchesMax;
     }) ?? [];
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -799,14 +988,14 @@ export default function ProductsPage() {
           <Input
             type="number"
             min={0}
-            placeholder="Prix min"
+            placeholder="Prix marché min"
             value={priceMinFilter}
             onChange={(e) => setPriceMinFilter(e.target.value)}
           />
           <Input
             type="number"
             min={0}
-            placeholder="Prix max"
+            placeholder="Prix marché max"
             value={priceMaxFilter}
             onChange={(e) => setPriceMaxFilter(e.target.value)}
           />
@@ -896,7 +1085,7 @@ export default function ProductsPage() {
                     </p>
                   </Link>
                   <p className="text-xs font-semibold text-[#0D0D0D] mt-0.5">
-                    {formatCurrency(product.sellingPrice)}
+                    {formatCurrency(product.marketSellingPrice)}
                   </p>
                   <div className="flex items-center justify-between mt-2">
                     <Badge

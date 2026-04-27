@@ -25,6 +25,7 @@ const AnalyticsCharts = dynamic(() => import("./AnalyticsCharts"), {
     <div className="grid grid-cols-1 gap-6">
       <Skeleton className="h-80 rounded-xl" />
       <Skeleton className="h-80 rounded-xl" />
+      <Skeleton className="h-[420px] rounded-[20px]" />
     </div>
   ),
 });
@@ -323,6 +324,7 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-1 gap-6">
           <Skeleton className="h-80 rounded-xl" />
           <Skeleton className="h-80 rounded-xl" />
+          <Skeleton className="h-[420px] rounded-[20px]" />
         </div>
       ) : (
         <AnalyticsCharts data={data} />

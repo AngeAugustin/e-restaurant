@@ -7,6 +7,7 @@ export interface ProductImportRow {
   name: string;
   category: ProductCategory | null;
   sellingPrice: number | null;
+  defaultMarketSellingPrice: number | null;
   image: string;
   valid: boolean;
   error?: string;
@@ -25,11 +26,37 @@ function parsePrice(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value >= 0 ? value : null;
   }
-  if (typeof value !== "string") return null;
-  const cleaned = value.replace(/[^\d,.\-]/g, "").replace(",", ".");
+  if (value == null || typeof value === "boolean") return null;
+  const cleaned = String(value)
+    .trim()
+    .replace(/[^\d,.\-]/g, "")
+    .replace(",", ".");
+  if (!cleaned) return null;
   const parsed = Number(cleaned);
   if (!Number.isFinite(parsed) || parsed < 0) return null;
   return parsed;
+}
+
+function findMarketPriceColumnIndex(headers: string[]): number {
+  const patterns = [
+    "prixdeventeunitairemarche",
+    "prixdeventeunitaire",
+    "prixventeunitairemarche",
+    "prixunitairemarche",
+    "prixventemarche",
+    "prixmarche",
+  ];
+  for (const p of patterns) {
+    const idx = headers.findIndex((h) => h.includes(p));
+    if (idx >= 0) return idx;
+  }
+  return headers.findIndex((h) => h.includes("marche") && h.includes("prix"));
+}
+
+function findCatalogPriceColumnIndex(headers: string[], marketIdx: number): number {
+  const sobe = headers.findIndex((h, i) => i !== marketIdx && (h.includes("sobebra") || h.includes("sobeb")));
+  if (sobe >= 0) return sobe;
+  return headers.findIndex((h, i) => i !== marketIdx && h.includes("prix") && !h.includes("marche"));
 }
 
 function parseImageUrl(value: unknown): string {
@@ -55,7 +82,8 @@ function parseExcelRows(buffer: Buffer): ProductImportRow[] {
   const headers = (rows[0] as unknown[]).map((cell) => normalizeHeader(String(cell ?? "")));
   const productIndex = headers.findIndex((h) => h === "produit" || h.includes("produit"));
   const categoryIndex = headers.findIndex((h) => h === "categorie" || h.includes("categorie"));
-  const priceIndex = headers.findIndex((h) => h === "prixvente" || h === "prix" || h.includes("prix"));
+  const marketPriceIndex = findMarketPriceColumnIndex(headers);
+  const priceIndex = findCatalogPriceColumnIndex(headers, marketPriceIndex);
   const imageIndex = headers.findIndex((h) => h.includes("lienimage") || h === "image" || h.includes("lien"));
 
   return rows.slice(1).map((cellsRaw, idx) => {
@@ -64,18 +92,33 @@ function parseExcelRows(buffer: Buffer): ProductImportRow[] {
     const categoryRaw = String(cells[categoryIndex] ?? "").trim();
     const category = normalizeImportedCategory(categoryRaw);
     const sellingPrice = parsePrice(cells[priceIndex]);
+    const defaultMarketSellingPrice = marketPriceIndex >= 0 ? parsePrice(cells[marketPriceIndex]) : null;
     const image = imageIndex >= 0 ? parseImageUrl(cells[imageIndex]) : "";
 
     const errors: string[] = [];
     if (!name) errors.push("Nom manquant");
     if (!category) errors.push("Catégorie invalide");
-    if (sellingPrice === null) errors.push("Prix invalide");
+    if (defaultMarketSellingPrice === null || !Number.isFinite(defaultMarketSellingPrice) || defaultMarketSellingPrice <= 0) {
+      errors.push("Prix marché invalide");
+    }
+    if (sellingPrice !== null) {
+      if (!Number.isFinite(sellingPrice) || sellingPrice < 0) {
+        errors.push("Prix SOBEBRA invalide");
+      } else if (
+        defaultMarketSellingPrice !== null &&
+        Number.isFinite(defaultMarketSellingPrice) &&
+        defaultMarketSellingPrice <= sellingPrice
+      ) {
+        errors.push("Prix marché <= prix SOBEBRA");
+      }
+    }
 
     return {
       rowNumber: idx + 2,
       name,
       category,
       sellingPrice,
+      defaultMarketSellingPrice,
       image,
       valid: errors.length === 0,
       ...(errors.length > 0 && { error: errors.join(" · ") }),
@@ -124,41 +167,44 @@ function parsePdfRows(text: string): ProductImportRow[] {
     .map((l) => l.trim())
     .filter(Boolean);
 
-  return lines
-    .map((line, idx) => {
-      // Ignore header line if present.
-      if (idx === 0 && /produit/i.test(line) && /categorie/i.test(line) && /prix/i.test(line)) {
-        return null;
-      }
+  const mapped: (ProductImportRow | null)[] = lines.map((line, idx) => {
+    // Ignore header line if present.
+    if (idx === 0 && /produit/i.test(line) && /categorie/i.test(line) && /prix/i.test(line)) {
+      return null;
+    }
 
-      const urlMatch = line.match(/https?:\/\/\S+$/i);
-      const image = urlMatch ? urlMatch[0] : "";
-      const lineWithoutUrl = urlMatch ? line.slice(0, line.length - image.length).trim() : line;
+    const urlMatch = line.match(/https?:\/\/\S+$/i);
+    const image = urlMatch ? urlMatch[0] : "";
+    const lineWithoutUrl = urlMatch ? line.slice(0, line.length - image.length).trim() : line;
 
-      const priceMatch = lineWithoutUrl.match(/(\d[\d\s.,]*)$/);
-      const priceRaw = priceMatch ? priceMatch[1] : "";
-      const sellingPrice = parsePrice(priceRaw);
-      const beforePrice = priceMatch
-        ? lineWithoutUrl.slice(0, lineWithoutUrl.length - priceRaw.length).trim()
-        : lineWithoutUrl;
+    const priceMatch = lineWithoutUrl.match(/(\d[\d\s.,]*)$/);
+    const priceRaw = priceMatch ? priceMatch[1] : "";
+    const sellingPrice = parsePrice(priceRaw);
+    const beforePrice = priceMatch
+      ? lineWithoutUrl.slice(0, lineWithoutUrl.length - priceRaw.length).trim()
+      : lineWithoutUrl;
 
-      const { name, category } = findCategoryAndProductFromPdfChunk(beforePrice);
-      const errors: string[] = [];
-      if (!name) errors.push("Nom manquant");
-      if (!category) errors.push("Catégorie invalide");
-      if (sellingPrice === null) errors.push("Prix invalide");
+    const { name, category } = findCategoryAndProductFromPdfChunk(beforePrice);
+    const errors: string[] = [];
+    if (!name) errors.push("Nom manquant");
+    if (!category) errors.push("Catégorie invalide");
+    if (sellingPrice === null) errors.push("Prix invalide");
+    // Le format PDF historique ne contient pas le prix marché.
+    errors.push("Prix marché manquant");
 
-      return {
-        rowNumber: idx + 1,
-        name,
-        category,
-        sellingPrice,
-        image,
-        valid: errors.length === 0,
-        ...(errors.length > 0 && { error: errors.join(" · ") }),
-      } satisfies ProductImportRow;
-    })
-    .filter((row): row is ProductImportRow => row !== null);
+    return {
+      rowNumber: idx + 1,
+      name,
+      category,
+      sellingPrice,
+      defaultMarketSellingPrice: null,
+      image,
+      valid: errors.length === 0,
+      ...(errors.length > 0 && { error: errors.join(" · ") }),
+    } satisfies ProductImportRow;
+  });
+
+  return mapped.filter((row): row is ProductImportRow => row !== null);
 }
 
 export async function parseProductImportFile(input: {

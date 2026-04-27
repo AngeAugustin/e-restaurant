@@ -3,11 +3,13 @@ import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import Product from "@/models/Product";
 import { isValidProductCategory } from "@/lib/product-categories";
+import { marketPriceAboveCatalogError, resolveCatalogPriceForImport } from "@/lib/product-market-price";
 
 type ImportRowPayload = {
   name: string;
   category: string;
-  sellingPrice: number;
+  sellingPrice?: number | string | null;
+  defaultMarketSellingPrice: number | string | null;
   image?: string;
 };
 
@@ -23,13 +25,36 @@ export async function POST(req: NextRequest) {
   }
 
   const sanitized = rows
-    .map((row) => ({
-      name: String(row.name ?? "").trim(),
-      category: row.category,
-      sellingPrice: Number(row.sellingPrice),
-      image: typeof row.image === "string" ? row.image.trim() : "",
-    }))
-    .filter((row) => row.name && isValidProductCategory(row.category) && Number.isFinite(row.sellingPrice));
+    .map((row) => {
+      const name = String(row.name ?? "").trim();
+      const rawS = row.sellingPrice as number | string | null | undefined;
+      const sellingMaybe =
+        rawS === undefined || rawS === null || (typeof rawS === "string" && rawS.trim() === "")
+          ? null
+          : Number(rawS);
+      const sellingPrice = Number.isFinite(sellingMaybe as number) ? (sellingMaybe as number) : null;
+      const rawM = row.defaultMarketSellingPrice as number | string | null | undefined;
+      const market =
+        rawM === undefined || rawM === null || (typeof rawM === "string" && rawM.trim() === "")
+          ? NaN
+          : Number(rawM);
+      const resolved = resolveCatalogPriceForImport(sellingPrice, market);
+      if (!resolved) return null;
+      return {
+        name,
+        category: row.category,
+        sellingPrice: resolved.sellingPrice,
+        defaultMarketSellingPrice: resolved.defaultMarketSellingPrice,
+        image: typeof row.image === "string" ? row.image.trim() : "",
+      };
+    })
+    .filter(
+      (row): row is NonNullable<typeof row> =>
+        row !== null &&
+        row.name !== "" &&
+        isValidProductCategory(row.category) &&
+        marketPriceAboveCatalogError(row.sellingPrice, row.defaultMarketSellingPrice) === null
+    );
 
   if (sanitized.length === 0) {
     return NextResponse.json({ error: "Aucune ligne valide à importer." }, { status: 400 });

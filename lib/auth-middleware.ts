@@ -9,7 +9,17 @@ interface AuthResult {
 }
 
 export async function requireAuth(roles?: string[]): Promise<AuthResult> {
-  const session = await getServerSession(authOptions);
+  let session: Session | null = null;
+  try {
+    session = await getServerSession(authOptions);
+  } catch {
+    return {
+      error: NextResponse.json(
+        { error: "Session expirée ou invalide. Déconnectez-vous puis reconnectez-vous." },
+        { status: 401 }
+      ),
+    };
+  }
 
   if (!session) {
     return {

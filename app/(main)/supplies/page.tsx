@@ -601,7 +601,7 @@ function SupplyDialog({
 }
 
 export default function SuppliesPage() {
-  const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+  const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100] as const;
   const { data: session } = useSession();
   const isDirector = session?.user?.role === "directeur";
   const qc = useQueryClient();
@@ -731,7 +731,7 @@ export default function SuppliesPage() {
                 <tr className="border-b border-slate-200/70 bg-slate-950/[0.025] text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                   <th className="whitespace-nowrap px-6 py-3.5 font-semibold">Date</th>
                   <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Produit</th>
-                  <th className="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Lots</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Casiers</th>
                   <th className="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Unités reçues</th>
                   <th className="whitespace-nowrap px-4 py-3.5 text-right font-semibold">Coût total</th>
                   <th className="whitespace-nowrap px-4 py-3.5 text-right font-semibold">Prix vente</th>

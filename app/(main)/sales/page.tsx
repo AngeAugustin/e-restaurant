@@ -33,7 +33,7 @@ async function fetchSales(): Promise<ISale[]> {
 
 // ----------- Main Page -----------
 export default function SalesPage() {
-  const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+  const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100] as const;
   const qc = useQueryClient();
   const { data: sales, isLoading } = useQuery({
     queryKey: ["sales"],

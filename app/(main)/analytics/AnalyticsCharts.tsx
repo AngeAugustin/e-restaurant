@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { TopProductsDonut } from "@/components/shared/TopProductsDonut";
 import { formatCurrency } from "@/lib/utils";
 import type { AnalyticsData } from "@/types";
+import PriceEvolutionChart from "./PriceEvolutionChart";
 
 const PRIMARY_COLOR = "hsl(var(--primary))";
 
@@ -216,6 +217,14 @@ export default function AnalyticsCharts({ data }: { data: AnalyticsData }) {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.25 }}
+      >
+        <PriceEvolutionChart />
       </motion.div>
     </div>
   );

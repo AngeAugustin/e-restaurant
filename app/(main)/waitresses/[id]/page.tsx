@@ -27,7 +27,7 @@ async function fetchWaitressSales(id: string): Promise<ISale[]> {
 }
 
 export default function WaitressDetailPage() {
-  const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+  const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100] as const;
   const { id } = useParams<{ id: string }>();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);

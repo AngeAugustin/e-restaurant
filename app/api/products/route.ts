@@ -3,7 +3,7 @@ import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import Product from "@/models/Product";
 import { isValidProductCategory } from "@/lib/product-categories";
-import { marketPriceAboveCatalogError } from "@/lib/product-market-price";
+import { parsePriceBodyField, resolveCatalogPriceForImport } from "@/lib/product-market-price";
 
 export async function GET() {
   const { error } = await requireAuth();
@@ -23,18 +23,18 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { name, image, sellingPrice, category, defaultMarketSellingPrice } = body;
 
-  if (!name || sellingPrice === undefined || defaultMarketSellingPrice === undefined || !category) {
-    return NextResponse.json(
-      { error: "Nom, catégorie, prix SOBEBRA et prix de vente marché requis" },
-      { status: 400 }
-    );
+  if (!name || !category) {
+    return NextResponse.json({ error: "Nom et catégorie requis" }, { status: 400 });
   }
 
-  const sobebra = Number(sellingPrice);
-  const marketDef = Number(defaultMarketSellingPrice);
-  const priceErr = marketPriceAboveCatalogError(sobebra, marketDef);
-  if (priceErr) {
-    return NextResponse.json({ error: priceErr }, { status: 400 });
+  const marketDef = parsePriceBodyField(defaultMarketSellingPrice);
+  const sobebraRaw = parsePriceBodyField(sellingPrice);
+  const resolved = resolveCatalogPriceForImport(sobebraRaw, marketDef);
+  if (!resolved) {
+    return NextResponse.json(
+      { error: "Prix de vente marché requis. Le prix SOBEBRA est optionnel (déduit automatiquement si absent ou 0 avec un marché > 1)." },
+      { status: 400 }
+    );
   }
 
   if (!isValidProductCategory(category)) {
@@ -50,8 +50,8 @@ export async function POST(req: NextRequest) {
     name: name.trim(),
     category,
     image: image || "",
-    sellingPrice: sobebra,
-    defaultMarketSellingPrice: marketDef,
+    sellingPrice: resolved.sellingPrice,
+    defaultMarketSellingPrice: resolved.defaultMarketSellingPrice,
   });
 
   return NextResponse.json(product, { status: 201 });
