@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth-middleware";
 import Sale from "@/models/Sale";
 import Product from "@/models/Product";
 import Supply from "@/models/Supply";
+import Waitress from "@/models/Waitress";
 import {
   endOfDay,
   endOfMonth,
@@ -124,6 +125,7 @@ export async function GET(request: Request) {
 
   const period = resolvePeriod(new URL(request.url).searchParams);
   const productColl = Product.collection.name;
+  const waitressColl = Waitress.collection.name;
 
   const [suppliesRows, salesRows, productProfits] = await Promise.all([
     Supply.aggregate<{
@@ -154,14 +156,84 @@ export async function GET(request: Request) {
       },
       { $sort: { createdAt: -1 } },
     ]),
-    Sale.aggregate<{ _id: Types.ObjectId; createdAt: Date; totalAmount: number }>([
+    Sale.aggregate<{
+      _id: Types.ObjectId;
+      createdAt: Date;
+      totalAmount: number;
+      amountPaid?: number;
+      change?: number;
+      waitressName: string;
+      itemsCount: number;
+      saleItems: Array<{ productName: string; quantity: number }>;
+    }>([
       {
         $match: {
           status: "COMPLETED",
           createdAt: { $gte: period.start, $lte: period.end },
         },
       },
-      { $project: { _id: 1, createdAt: 1, totalAmount: 1 } },
+      {
+        $lookup: {
+          from: waitressColl,
+          localField: "waitress",
+          foreignField: "_id",
+          as: "w",
+        },
+      },
+      {
+        $lookup: {
+          from: productColl,
+          localField: "items.product",
+          foreignField: "_id",
+          as: "saleProducts",
+        },
+      },
+      { $unwind: { path: "$w", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          createdAt: 1,
+          totalAmount: 1,
+          amountPaid: 1,
+          change: 1,
+          itemsCount: { $sum: "$items.quantity" },
+          saleItems: {
+            $map: {
+              input: "$items",
+              as: "item",
+              in: {
+                productName: {
+                  $let: {
+                    vars: {
+                      productMatch: {
+                        $arrayElemAt: [
+                          {
+                            $filter: {
+                              input: "$saleProducts",
+                              as: "p",
+                              cond: { $eq: ["$$p._id", "$$item.product"] },
+                            },
+                          },
+                          0,
+                        ],
+                      },
+                    },
+                    in: { $ifNull: ["$$productMatch.name", "Produit inconnu"] },
+                  },
+                },
+                quantity: "$$item.quantity",
+              },
+            },
+          },
+          waitressName: {
+            $trim: {
+              input: {
+                $concat: [{ $ifNull: ["$w.firstName", ""] }, " ", { $ifNull: ["$w.lastName", ""] }],
+              },
+            },
+          },
+        },
+      },
       { $sort: { createdAt: -1 } },
     ]),
     Sale.aggregate<{ _id: Types.ObjectId; name: string; units: number; revenue: number; profit: number }>([
@@ -246,6 +318,11 @@ export async function GET(request: Request) {
     sales: salesRows.map((row) => ({
       date: format(row.createdAt, "dd/MM/yyyy"),
       totalAmount: row.totalAmount,
+      amountPaid: row.amountPaid ?? 0,
+      change: row.change ?? 0,
+      waitressName: row.waitressName || "Inconnue",
+      itemsCount: row.itemsCount ?? 0,
+      saleItems: row.saleItems ?? [],
     })),
     productProfits: productProfits.map((row) => ({
       name: row.name,

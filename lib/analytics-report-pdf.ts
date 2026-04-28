@@ -21,6 +21,14 @@ export interface AnalyticsReportPayload {
   sales: Array<{
     date: string;
     totalAmount: number;
+    amountPaid: number;
+    change: number;
+    waitressName: string;
+    itemsCount: number;
+    saleItems: Array<{
+      productName: string;
+      quantity: number;
+    }>;
   }>;
   productProfits: Array<{
     name: string;
@@ -119,13 +127,29 @@ function buildExecutiveSummary(report: AnalyticsReportPayload, totalProfit: numb
   ];
 }
 
+async function loadImageAsDataUrl(path: string): Promise<string | null> {
+  try {
+    const response = await fetch(path);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): Promise<void> {
   const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
   const autoTable = (autoTableModule as { default: (doc: unknown, options: unknown) => void }).default;
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   doc.setFont("helvetica", "normal");
   doc.setCharSpace(0);
-  doc.setLineHeightFactor(1.15);
+  doc.setLineHeightFactor(1.25);
 
   const pageWidth = 210;
   const pageHeight = 297;
@@ -136,11 +160,20 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
   const border = [226, 232, 240] as const;
   const softBg = [248, 250, 252] as const;
   const accent = [30, 64, 175] as const;
+  const mutedText = [100, 116, 139] as const;
+  const cardTitle = [51, 65, 85] as const;
+  const sectionGap = 12;
 
   const totalProfit = report.productProfits.reduce((sum, row) => sum + row.profit, 0);
   const marginRate = safePercent(totalProfit, report.summary.salesRevenue);
   const executiveSummary = buildExecutiveSummary(report, totalProfit, marginRate);
   const insights = buildInsights(report);
+  const companyLogo = await loadImageAsDataUrl("/Logo.png");
+  const companyName = "ILOSIWAJU";
+  const companySubtitle = "BAR Restaurant";
+  const generatedAt = new Date(report.generatedAt).toLocaleString("fr-FR");
+  const dateRangeLabel = `Du ${report.period.startDate} au ${report.period.endDate}`;
+  const supplyToRevenueRate = safePercent(report.summary.suppliesTotalCost, report.summary.salesRevenue);
 
   const footer = () => {
     const pages = doc.getNumberOfPages();
@@ -156,72 +189,112 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
 
   // Cover/header
   doc.setFillColor(...softBg);
-  doc.rect(0, 0, pageWidth, 40, "F");
+  doc.rect(0, 0, pageWidth, 24, "F");
   doc.setDrawColor(...border);
-  doc.line(0, 40, pageWidth, 40);
+  doc.line(0, 24, pageWidth, 24);
+  if (companyLogo) {
+    doc.addImage(companyLogo, "PNG", margin, 6, 10, 10);
+  }
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
+  doc.setFontSize(14);
   doc.setTextColor(...primary);
-  doc.text("Rapport Analytiques - Performance commerciale", margin, 16);
+  doc.text(companyName, margin + 13, 10.5);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...secondary);
-  doc.text(`Période: ${report.period.label}`, margin, 24);
-  doc.text(`Du ${report.period.startDate} au ${report.period.endDate}`, margin, 29);
-  doc.text(`Généré le ${new Date(report.generatedAt).toLocaleString("fr-FR")}`, margin, 34);
+  doc.text(companySubtitle, margin + 13, 16);
 
-  // 1) Synthèse KPI
-  let y = 48;
-  const gap = 4;
-  const cardW = (contentWidth - gap) / 2;
-  const cardH = 19;
-  const drawKpiCard = (x: number, cardY: number, title: string, value: string, subtitle: string) => {
-    doc.setFillColor(...softBg);
+  const drawSectionTitle = (title: string, startY: number): number => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12.5);
+    doc.setTextColor(...primary);
+    doc.text(title, margin, startY);
     doc.setDrawColor(...border);
-    doc.roundedRect(x, cardY, cardW, cardH, 2, 2, "FD");
+    doc.line(margin, startY + 2.8, margin + contentWidth, startY + 2.8);
+    return startY + 10;
+  };
+
+  const drawSubSectionTitle = (title: string, startY: number): number => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.setTextColor(...cardTitle);
+    doc.text(title, margin, startY);
+    return startY + 6;
+  };
+
+  const ensureSpace = (cursorY: number, requiredHeight: number): number => {
+    if (cursorY + requiredHeight <= pageHeight - 20) return cursorY;
+    doc.addPage();
+    return margin;
+  };
+
+  const drawInfoLabelValue = (label: string, value: string, x: number, yPos: number) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...mutedText);
+    doc.text(label, x, yPos);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(...secondary);
-    doc.text(title, x + 3, cardY + 5);
+    doc.setFontSize(10);
+    doc.setTextColor(...primary);
+    doc.text(value, x, yPos + 4.6);
+  };
+
+  const drawKpiCard = (params: { x: number; yPos: number; width: number; title: string; value: string; subtitle: string }) => {
+    const { x, yPos, width, title, value, subtitle } = params;
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(...border);
+    doc.roundedRect(x, yPos, width, 26, 2, 2, "FD");
+    doc.setFillColor(...accent);
+    doc.rect(x, yPos, width, 1.2, "F");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...cardTitle);
+    doc.text(title, x + 3, yPos + 6);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.setTextColor(...primary);
-    doc.text(value, x + 3, cardY + 11);
+    doc.text(value, x + 3, yPos + 13);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.setTextColor(...secondary);
-    doc.text(subtitle, x + 3, cardY + 16);
+    doc.setTextColor(...mutedText);
+    const subtitleLines = doc.splitTextToSize(subtitle, width - 6);
+    doc.text(subtitleLines, x + 3, yPos + 19);
   };
 
-  drawKpiCard(margin, y, "Chiffre d'affaires", formatCurrency(report.summary.salesRevenue), "Ventes réalisées");
-  drawKpiCard(margin + cardW + gap, y, "Bénéfice brut", formatCurrency(totalProfit), "Bénéfice cumulé produits");
-  y += cardH + gap;
-  drawKpiCard(margin, y, "Taux de marge", formatPercent(marginRate), "Bénéfice / CA");
-  drawKpiCard(
-    margin + cardW + gap,
-    y,
-    "Ventes clôturées",
-    formatInteger(report.summary.salesCount),
-    "Nombre de ventes sur la période"
-  );
-  y += cardH + 8;
+  // 1) Informations de rapport
+  let y = 34;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...mutedText);
+  doc.text("RAPPORT EXECUTIF", pageWidth / 2, y, { align: "center" });
+  y += 7;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(...primary);
+  doc.text("Rapport Analytiques", pageWidth / 2, y, { align: "center" });
+  y += 6;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...secondary);
+  doc.text("Synthèse opérationnelle et financière", pageWidth / 2, y, { align: "center" });
+  y += 7;
+  doc.setFillColor(...softBg);
+  doc.setDrawColor(...border);
+  doc.roundedRect(margin, y, contentWidth, 22, 2, 2, "FD");
+  drawInfoLabelValue("PERIODE", report.period.label, margin + 4, y + 6);
+  drawInfoLabelValue("INTERVALLE", dateRangeLabel, margin + 70, y + 6);
+  drawInfoLabelValue("GENERE LE", generatedAt, margin + 140, y + 6);
+  y += 34;
 
   // 2) Résumé exécutif
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(...primary);
-  doc.text("Résumé exécutif", margin, y);
-  y += 6;
-  doc.setDrawColor(...border);
-  doc.line(margin, y, margin + contentWidth, y);
-  y += 4;
-  const summaryLineHeight = 4.3;
+  y = drawSectionTitle("Résumé exécutif", y);
+  const summaryLineHeight = 5;
   const summaryLines = executiveSummary.map((line) => doc.splitTextToSize(`- ${line}`, contentWidth - 8));
   const summaryTextHeight = summaryLines.reduce(
     (height, lines) => height + (Array.isArray(lines) ? lines.length : 1) * summaryLineHeight,
     0
   );
-  const summaryHeight = Math.max(22, summaryTextHeight + 6);
+  const summaryHeight = Math.max(26, summaryTextHeight + 8);
   if (y + summaryHeight + 6 > pageHeight - 20) {
     doc.addPage();
     y = margin;
@@ -232,66 +305,62 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
   doc.setTextColor(...secondary);
-  let summaryCursorY = y + 4.5;
+  let summaryCursorY = y + 6;
   summaryLines.forEach((lines) => {
     const safeLines = Array.isArray(lines) ? lines : [lines];
     doc.text(safeLines, margin + 4, summaryCursorY);
     summaryCursorY += safeLines.length * summaryLineHeight;
   });
-  y += summaryHeight + 7;
+  y += summaryHeight + sectionGap;
 
-  // 3) Insights section
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(...primary);
-  doc.text("Commentaires et analyses factuelles", margin, y);
-  y += 6;
-  doc.setDrawColor(...border);
-  doc.line(margin, y, margin + contentWidth, y);
-  y += 4;
-
-  insights.forEach((text, index) => {
-    const lines = doc.splitTextToSize(`${index + 1}. ${text}`, contentWidth - 2);
-    if (y + lines.length * 5 > pageHeight - 20) {
-      doc.addPage();
-      y = margin;
-    }
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(...secondary);
-    doc.text(lines, margin, y);
-    y += lines.length * 5 + 1.5;
+  // 3) KPI + produit phare
+  y = ensureSpace(y, 68);
+  y = drawSectionTitle("Indicateurs clés", y);
+  const gap = 4;
+  const cardWidth = (contentWidth - gap * 2) / 3;
+  drawKpiCard({
+    x: margin,
+    yPos: y,
+    width: cardWidth,
+    title: "Chiffre d'affaires",
+    value: formatCurrency(report.summary.salesRevenue),
+    subtitle: `${formatInteger(report.summary.salesCount)} vente(s)`,
   });
-  y += 4;
+  drawKpiCard({
+    x: margin + cardWidth + gap,
+    yPos: y,
+    width: cardWidth,
+    title: "Bénéfice brut",
+    value: formatCurrency(totalProfit),
+    subtitle: `${formatPercent(marginRate)} de marge`,
+  });
+  drawKpiCard({
+    x: margin + cardWidth * 2 + gap * 2,
+    yPos: y,
+    width: cardWidth,
+    title: "Approvisionnements",
+    value: formatCurrency(report.summary.suppliesTotalCost),
+    subtitle: `${formatInteger(report.summary.suppliesCount)} opération(s)`,
+  });
+  y += 36;
 
-  // 4) Top product card
-  if (y + 34 > pageHeight - 20) {
-    doc.addPage();
-    y = margin;
-  }
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(...primary);
-  doc.text("Produit le plus vendu", margin, y);
-  y += 6;
-  doc.setDrawColor(...border);
-  doc.line(margin, y, margin + contentWidth, y);
-  y += 4;
+  y = ensureSpace(y, 40);
+  y = drawSectionTitle("Produit dominant", y);
   doc.setFillColor(...softBg);
   doc.setDrawColor(...border);
-  doc.roundedRect(margin, y, contentWidth, 24, 2, 2, "FD");
+  doc.roundedRect(margin, y, contentWidth, 28, 2, 2, "FD");
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...secondary);
   if (report.topSellingProduct) {
-    doc.text(`Produit: ${report.topSellingProduct.name}`, margin + 4, y + 7);
-    doc.text(`Unités vendues: ${formatInteger(report.topSellingProduct.units)}`, margin + 4, y + 13);
-    doc.text(`Revenus: ${formatCurrency(report.topSellingProduct.revenue)}`, margin + 100, y + 7);
-    doc.text(`Bénéfice: ${formatCurrency(report.topSellingProduct.profit)}`, margin + 100, y + 13);
+    drawInfoLabelValue("PRODUIT", report.topSellingProduct.name, margin + 4, y + 6);
+    drawInfoLabelValue("UNITES", formatInteger(report.topSellingProduct.units), margin + 76, y + 6);
+    drawInfoLabelValue("REVENUS", formatCurrency(report.topSellingProduct.revenue), margin + 110, y + 6);
+    drawInfoLabelValue("BENEFICE", formatCurrency(report.topSellingProduct.profit), margin + 154, y + 6);
   } else {
-    doc.text("Aucune vente sur la période.", margin + 4, y + 11);
+    doc.text("Aucune vente sur la période.", margin + 4, y + 15);
   }
-  y += 30;
+  y += 38;
 
   const tableCommon = {
     margin: { left: margin, right: margin },
@@ -303,13 +372,13 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
       textColor: primary,
       lineColor: border,
       lineWidth: 0.1,
-      cellPadding: 2,
+      cellPadding: 2.8,
       overflow: "linebreak",
       cellWidth: "wrap",
       valign: "middle",
     },
     headStyles: {
-      fillColor: softBg,
+      fillColor: [241, 245, 249],
       textColor: primary,
       fontStyle: "bold",
       overflow: "linebreak",
@@ -320,23 +389,28 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
   } as const;
 
   const addSectionHeader = (title: string) => {
-    if (y + 12 > pageHeight - 20) {
-      doc.addPage();
-      y = margin;
-    }
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.setTextColor(...primary);
-    doc.text(title, margin, y);
-    y += 6;
-    doc.setDrawColor(...border);
-    doc.line(margin, y, margin + contentWidth, y);
     y += 3;
+    y = ensureSpace(y, 14);
+    y = drawSectionTitle(title, y);
   };
 
-  // 5) Données détaillées
-  addSectionHeader("Données détaillées");
-  addSectionHeader(`Approvisionnements (${formatInteger(report.supplies.length)})`);
+  const addTableComment = (text: string) => {
+    const lines = doc.splitTextToSize(text.charAt(0).toUpperCase() + text.slice(1), contentWidth - 12);
+    const boxHeight = Math.max(12, lines.length * 4.4 + 6);
+    y = ensureSpace(y, boxHeight + 4);
+    doc.setFillColor(...softBg);
+    doc.setDrawColor(...border);
+    doc.roundedRect(margin, y, contentWidth, boxHeight, 2, 2, "FD");
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8.8);
+    doc.setTextColor(...mutedText);
+    doc.text(lines, margin + 4, y + 5.2);
+    y += boxHeight + 10;
+  };
+
+  // 4) Données détaillées
+  addSectionHeader("Détails des opérations");
+  y = drawSubSectionTitle(`Approvisionnements (${formatInteger(report.supplies.length)})`, y);
   autoTable(doc, {
     ...tableCommon,
     startY: y,
@@ -357,25 +431,50 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
       3: { cellWidth: 30, halign: "right" },
     },
   });
-  y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 6;
+  y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 12;
+  addTableComment(
+    report.supplies.length > 0
+      ? `${formatInteger(report.supplies.length)} approvisionnement(s) enregistré(s) sur cette période.`
+      : "aucune entrée d'approvisionnement n'a été enregistrée sur cette période."
+  );
 
-  addSectionHeader(`Ventes réalisées (${formatInteger(report.sales.length)})`);
+  y = drawSubSectionTitle(`Ventes réalisées (${formatInteger(report.sales.length)})`, y);
   autoTable(doc, {
     ...tableCommon,
     startY: y,
-    head: [["Date", "Montant de la vente"]],
+    head: [["Date", "Serveuse", "Produits (Qté)", "Articles", "Montant vente", "Montant remis", "Monnaie"]],
     body:
       report.sales.length > 0
-        ? report.sales.map((row) => [row.date, formatCurrency(row.totalAmount)])
-        : [["-", "Aucune vente réalisée sur la période"]],
+        ? report.sales.map((row) => [
+            row.date,
+            row.waitressName,
+            row.saleItems.length > 0
+              ? row.saleItems.map((item) => `${item.productName} x${formatInteger(item.quantity)}`).join(", ")
+              : "-",
+            formatInteger(row.itemsCount),
+            formatCurrency(row.totalAmount),
+            formatCurrency(row.amountPaid),
+            formatCurrency(row.change),
+          ])
+        : [["-", "-", "-", "-", "Aucune vente réalisée", "-", "-"]],
     columnStyles: {
-      0: { cellWidth: 30 },
-      1: { cellWidth: 136, halign: "right" },
+      0: { cellWidth: 16 },
+      1: { cellWidth: 30 },
+      2: { cellWidth: 42 },
+      3: { cellWidth: 14, halign: "right" },
+      4: { cellWidth: 26, halign: "right" },
+      5: { cellWidth: 30, halign: "right" },
+      6: { cellWidth: 34, halign: "right" },
     },
   });
-  y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 6;
+  y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 12;
+  addTableComment(
+    report.sales.length > 0
+      ? `${formatInteger(report.sales.length)} vente(s) clôturée(s), pour un total de ${formatCurrency(report.summary.salesRevenue)}.`
+      : "aucune vente clôturée n'a été enregistrée sur la période."
+  );
 
-  addSectionHeader(`Bénéfice par produit (${formatInteger(report.productProfits.length)})`);
+  y = drawSubSectionTitle(`Bénéfice par produit (${formatInteger(report.productProfits.length)})`, y);
   autoTable(doc, {
     ...tableCommon,
     startY: y,
@@ -398,6 +497,45 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
       2: { cellWidth: 34, halign: "right" },
       3: { cellWidth: 34, halign: "right" },
     },
+  });
+  y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 12;
+  addTableComment(
+    report.topSellingProduct
+      ? `le produit dominant est "${report.topSellingProduct.name}" avec ${formatInteger(report.topSellingProduct.units)} unités vendues.`
+      : "aucun produit dominant n'a pu être identifié sur cette période."
+  );
+
+  // 5) Analyse / insights
+  y = ensureSpace(y, 68);
+  y = drawSectionTitle("Analyse et insights", y);
+  const alertMessages: string[] = [];
+  if (marginRate < 12 && report.summary.salesRevenue > 0) {
+    alertMessages.push("Marge brute faible sur la période, à surveiller.");
+  }
+  if (supplyToRevenueRate > 70) {
+    alertMessages.push("Ratio coût d'approvisionnement / CA élevé.");
+  }
+  if (report.summary.salesCount === 0) {
+    alertMessages.push("Aucune vente enregistrée sur la période.");
+  }
+  const allInsights = [...insights.slice(0, 4), ...alertMessages.map((item) => `Point de vigilance: ${item}`)];
+  const insightLines = allInsights.map((line) => doc.splitTextToSize(line, contentWidth - 14));
+  const insightHeight =
+    insightLines.reduce((sum, lines) => sum + (Array.isArray(lines) ? lines.length : 1) * 4.6, 0) + allInsights.length * 2 + 8;
+  y = ensureSpace(y, insightHeight + 6);
+  doc.setFillColor(...softBg);
+  doc.setDrawColor(...border);
+  doc.roundedRect(margin, y, contentWidth, insightHeight, 2, 2, "FD");
+  let insightY = y + 6;
+  insightLines.forEach((lines) => {
+    const safeLines = Array.isArray(lines) ? lines : [lines];
+    doc.setFillColor(...accent);
+    doc.circle(margin + 3.2, insightY - 1.4, 0.7, "F");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.2);
+    doc.setTextColor(...secondary);
+    doc.text(safeLines, margin + 6, insightY);
+    insightY += safeLines.length * 4.6 + 2;
   });
 
   footer();
