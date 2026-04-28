@@ -1,5 +1,4 @@
 import * as XLSX from "xlsx";
-import { PDFParse } from "pdf-parse";
 import { normalizeImportedCategory, type ProductCategory } from "@/lib/product-categories";
 
 export interface ProductImportRow {
@@ -225,6 +224,9 @@ export async function parseProductImportFile(input: {
   }
 
   if (fileName.endsWith(".pdf") || mime.includes("pdf")) {
+    // Load PDF parser lazily to avoid failing module initialization
+    // for regular Excel imports when PDF runtime dependencies are unavailable.
+    const { PDFParse } = await import("pdf-parse");
     const parser = new PDFParse({ data: new Uint8Array(input.buffer) });
     try {
       const textResult = await parser.getText();

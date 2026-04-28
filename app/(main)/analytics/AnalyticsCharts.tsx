@@ -15,7 +15,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { TopProductsDonut } from "@/components/shared/TopProductsDonut";
 import { formatCurrency } from "@/lib/utils";
 import type { AnalyticsData } from "@/types";
-import PriceEvolutionChart from "./PriceEvolutionChart";
 
 const PRIMARY_COLOR = "hsl(var(--primary))";
 
@@ -78,9 +77,9 @@ const ChartTooltip = ({
 };
 
 export default function AnalyticsCharts({ data }: { data: AnalyticsData }) {
-  const top3Products = [...data.productRevenue]
+  const top5Products = [...data.productRevenue]
     .sort((a, b) => b.units - a.units)
-    .slice(0, 3)
+    .slice(0, 5)
     .map((p) => ({ name: p.name, sold: p.units, revenue: p.revenue }));
 
   return (
@@ -159,14 +158,14 @@ export default function AnalyticsCharts({ data }: { data: AnalyticsData }) {
         >
           <Card className="flex h-full flex-col">
             <CardHeader className="space-y-1 pb-2">
-              <CardTitle className="text-base">Top 3 produits</CardTitle>
+              <CardTitle className="text-base">Top 5 produits</CardTitle>
               <CardDescription className="text-xs leading-snug">
                 Répartition des quantités vendues (unités) sur la période sélectionnée
               </CardDescription>
             </CardHeader>
             <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4 sm:px-5">
               <div className="min-h-0 w-full flex-1" style={{ height: 300 }}>
-                <TopProductsDonut products={top3Products} stackLayout />
+                <TopProductsDonut products={top5Products} stackLayout />
               </div>
             </CardContent>
           </Card>
@@ -219,13 +218,7 @@ export default function AnalyticsCharts({ data }: { data: AnalyticsData }) {
         </Card>
       </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.25 }}
-      >
-        <PriceEvolutionChart />
-      </motion.div>
+      {/* Section "Prix catalogue vs marché" masquée temporairement */}
     </div>
   );
 }

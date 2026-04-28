@@ -30,7 +30,7 @@ const AnalyticsCharts = dynamic(() => import("./AnalyticsCharts"), {
   ),
 });
 
-type AnalyticsFilter = "week" | "month" | "semester" | "year" | "custom";
+type AnalyticsFilter = "today" | "yesterday" | "week" | "month" | "semester" | "year" | "custom";
 
 async function fetchAnalytics(params: {
   filter: AnalyticsFilter;
@@ -92,7 +92,7 @@ export default function AnalyticsPage() {
   const { data: session, status } = useSession();
   const now = new Date();
   const currentYear = now.getFullYear();
-  const [filter, setFilter] = useState<AnalyticsFilter>("year");
+  const [filter, setFilter] = useState<AnalyticsFilter>("today");
   const [year, setYear] = useState<number>(currentYear);
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
   const [semester, setSemester] = useState<number>(now.getMonth() < 6 ? 1 : 2);
@@ -105,7 +105,7 @@ export default function AnalyticsPage() {
   const canApplyCustom = Boolean(customFrom && customTo && !hasInvalidCustomRange);
 
   const queryParams = useMemo(() => {
-    if (filter === "week") return { filter } as const;
+    if (filter === "today" || filter === "yesterday" || filter === "week") return { filter } as const;
     if (filter === "month") return { filter, year, month } as const;
     if (filter === "semester") return { filter, year, semester } as const;
     if (filter === "custom")
@@ -186,6 +186,8 @@ export default function AnalyticsPage() {
             <SelectValue placeholder="Choisir une période" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="today">{"Aujourd'hui"}</SelectItem>
+            <SelectItem value="yesterday">Hier</SelectItem>
             <SelectItem value="year">Année</SelectItem>
             <SelectItem value="semester">Semestre</SelectItem>
             <SelectItem value="month">Mois</SelectItem>

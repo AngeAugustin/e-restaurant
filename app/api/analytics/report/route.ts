@@ -14,10 +14,11 @@ import {
   startOfMonth,
   startOfWeek,
   startOfYear,
+  subDays,
 } from "date-fns";
 import type { Types } from "mongoose";
 
-type AnalyticsFilter = "week" | "month" | "semester" | "year" | "custom";
+type AnalyticsFilter = "today" | "yesterday" | "week" | "month" | "semester" | "year" | "custom";
 
 interface ResolvedPeriod {
   filter: AnalyticsFilter;
@@ -37,13 +38,15 @@ function resolvePeriod(params: URLSearchParams): ResolvedPeriod {
   const currentYear = now.getFullYear();
   const rawFilter = params.get("filter");
   const filter: AnalyticsFilter =
+    rawFilter === "today" ||
+    rawFilter === "yesterday" ||
     rawFilter === "week" ||
     rawFilter === "month" ||
     rawFilter === "semester" ||
     rawFilter === "custom" ||
     rawFilter === "year"
       ? rawFilter
-      : "year";
+      : "today";
 
   const yearRaw = Number(params.get("year"));
   const year = Number.isFinite(yearRaw) && yearRaw >= 2000 && yearRaw <= 2100 ? yearRaw : currentYear;
@@ -51,6 +54,19 @@ function resolvePeriod(params: URLSearchParams): ResolvedPeriod {
   const month = Number.isFinite(monthRaw) && monthRaw >= 1 && monthRaw <= 12 ? monthRaw : now.getMonth() + 1;
   const semesterRaw = Number(params.get("semester"));
   const semester = semesterRaw === 1 || semesterRaw === 2 ? semesterRaw : now.getMonth() < 6 ? 1 : 2;
+
+  if (filter === "today") {
+    const start = startOfDay(now);
+    const end = endOfDay(now);
+    return { filter, start, end, label: "Aujourd'hui" };
+  }
+
+  if (filter === "yesterday") {
+    const yesterday = subDays(now, 1);
+    const start = startOfDay(yesterday);
+    const end = endOfDay(yesterday);
+    return { filter, start, end, label: "Hier" };
+  }
 
   if (filter === "week") {
     const start = startOfWeek(now, { weekStartsOn: 1 });

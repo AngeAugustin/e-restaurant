@@ -1,6 +1,6 @@
 export interface AnalyticsReportPayload {
   period: {
-    filter: "week" | "month" | "semester" | "year" | "custom";
+    filter: "today" | "yesterday" | "week" | "month" | "semester" | "year" | "custom";
     startDate: string;
     endDate: string;
     label: string;
