@@ -483,9 +483,6 @@ export default function SaleWizard({
                         </p>
                         <p className={cn("text-xs mt-1", inCart ? "text-primary-foreground/80" : "text-[#374151]")}>
                           {formatCurrency(product.marketSellingPrice)}
-                          {!inCart && product.marketSellingPrice !== product.sellingPrice && (
-                            <span className="text-[#9CA3AF]"> · cat. {formatCurrency(product.sellingPrice)}</span>
-                          )}
                         </p>
                         <p className={cn("text-xs mt-auto pt-1.5", inCart ? "text-primary-foreground/60" : "text-[#9CA3AF]")}>
                           Stock {product.stock}
