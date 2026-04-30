@@ -86,7 +86,7 @@ export function TopProductsDonut({ products, stackLayout = false }: TopProductsD
 
       <ul className="flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-2 overflow-y-auto lg:gap-2">
         {chartData.map((row, i) => (
-          <li key={row.name} className="flex items-end gap-1.5 text-xs">
+          <li key={`${row.name}-${i}`} className="flex items-end gap-1.5 text-xs">
             <span
               className="mb-1 h-2 w-2 shrink-0 rounded-full"
               style={{ backgroundColor: TOP_PRODUCT_COLORS[i % TOP_PRODUCT_COLORS.length] }}

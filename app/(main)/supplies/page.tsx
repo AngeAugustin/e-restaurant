@@ -369,25 +369,25 @@ function SupplyDialog({
               {(() => {
                 const recapEdit = supplyLineRecapValues(form);
                 return (
-                  <div className="rounded-lg border border-[#E5E5E5] bg-white/80 px-3 py-2.5">
-                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+                  <div className="rounded-lg border border-primary/25 bg-primary px-3 py-2.5">
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground/70">
                       Récapitulatif
                     </p>
-                    <p className="text-sm leading-relaxed text-[#374151]">
-                      <span className="font-semibold text-[#0D0D0D]">{recapEdit.nbCasiers ?? "—"}</span>{" "}
+                    <p className="text-sm leading-relaxed text-primary-foreground/90">
+                      <span className="font-semibold text-primary-foreground">{recapEdit.nbCasiers ?? "—"}</span>{" "}
                       {recapEdit.nbCasiers === 1 ? "casier" : "casiers"} de{" "}
-                      <span className="font-semibold text-[#0D0D0D]">{recapEdit.taille ?? "—"}</span>{" "}
+                      <span className="font-semibold text-primary-foreground">{recapEdit.taille ?? "—"}</span>{" "}
                       unité{recapEdit.taille === 1 ? "" : "s"} à{" "}
-                      <span className="font-semibold text-[#0D0D0D]">
+                      <span className="font-semibold text-primary-foreground">
                         {recapEdit.prixCasier != null ? formatCurrency(recapEdit.prixCasier) : "—"}
                       </span>{" "}
                       par casier, soit{" "}
-                      <span className="font-semibold text-[#0D0D0D]">
+                      <span className="font-semibold text-primary-foreground">
                         {recapEdit.montantCasiers != null ? formatCurrency(recapEdit.montantCasiers) : "—"}
                       </span>{" "}
                       pour ce produit
                       {recapEdit.totalUnites != null ? (
-                        <span className="text-[#6B7280]">
+                        <span className="text-primary-foreground/75">
                           {" "}
                           ({recapEdit.totalUnites} unité{recapEdit.totalUnites > 1 ? "s" : ""} au total)
                         </span>
@@ -526,27 +526,27 @@ function SupplyDialog({
                       </div>
 
                       {selectedProduct ? (
-                        <div className="mt-3 rounded-lg border border-[#E5E5E5] bg-white/80 px-3 py-2.5">
-                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+                        <div className="mt-3 rounded-lg border border-primary/25 bg-primary px-3 py-2.5">
+                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground/70">
                             Récapitulatif
                           </p>
-                          <p className="text-sm leading-relaxed text-[#374151]">
-                            <span className="font-semibold text-[#0D0D0D]">
+                          <p className="text-sm leading-relaxed text-primary-foreground/90">
+                            <span className="font-semibold text-primary-foreground">
                               {recap.nbCasiers ?? "—"}
                             </span>{" "}
                             {recap.nbCasiers === 1 ? "casier" : "casiers"} de{" "}
-                            <span className="font-semibold text-[#0D0D0D]">{recap.taille ?? "—"}</span>{" "}
+                            <span className="font-semibold text-primary-foreground">{recap.taille ?? "—"}</span>{" "}
                             unité{recap.taille === 1 ? "" : "s"} à{" "}
-                            <span className="font-semibold text-[#0D0D0D]">
+                            <span className="font-semibold text-primary-foreground">
                               {recap.prixCasier != null ? formatCurrency(recap.prixCasier) : "—"}
                             </span>{" "}
                             par casier, soit{" "}
-                            <span className="font-semibold text-[#0D0D0D]">
+                            <span className="font-semibold text-primary-foreground">
                               {recap.montantCasiers != null ? formatCurrency(recap.montantCasiers) : "—"}
                             </span>{" "}
                             pour ce produit
                             {recap.totalUnites != null ? (
-                              <span className="text-[#6B7280]">
+                              <span className="text-primary-foreground/75">
                                 {" "}
                                 ({recap.totalUnites} unité{recap.totalUnites > 1 ? "s" : ""} au total).
                               </span>

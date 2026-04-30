@@ -36,7 +36,7 @@ import {
 
 const navItems = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, roles: ["directeur", "gerant"] },
-  { href: "/products", label: "Produits", icon: Package, roles: ["directeur", "gerant"] },
+  { href: "/products", label: "Produits", icon: Package, roles: ["directeur"] },
   { href: "/supplies", label: "Approvisionnements", icon: TruckIcon, roles: ["directeur", "gerant"] },
   { href: "/sales", label: "Ventes", icon: ShoppingCart, roles: ["directeur", "gerant"] },
   { href: "/waitresses", label: "Serveuses", icon: UserRound, roles: ["directeur"] },

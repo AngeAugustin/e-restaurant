@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
@@ -16,10 +16,19 @@ import { DEFAULT_LOGO_URL, DEFAULT_SOLUTION_NAME } from "@/lib/app-settings";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { status } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+      router.refresh();
+    }
+  }, [status, router]);
+
   const { data: publicSettings } = useQuery({
     queryKey: ["public-settings"],
     queryFn: async () => {
@@ -31,6 +40,10 @@ export default function LoginPage() {
   });
   const logoSrc = publicSettings?.logoUrl || DEFAULT_LOGO_URL;
   const solutionName = publicSettings?.solutionName || DEFAULT_SOLUTION_NAME;
+
+  if (status === "loading" || status === "authenticated") {
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

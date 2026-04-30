@@ -91,7 +91,6 @@ interface ProductFormData {
   name: string;
   category: string;
   image: string;
-  sellingPrice: string;
   defaultMarketSellingPrice: string;
 }
 
@@ -110,7 +109,6 @@ function ProductFormDialog({
     name: "",
     category: DEFAULT_PRODUCT_CATEGORY,
     image: "",
-    sellingPrice: "",
     defaultMarketSellingPrice: "",
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -123,7 +121,6 @@ function ProductFormDialog({
       name: product?.name ?? "",
       category: product?.category ?? DEFAULT_PRODUCT_CATEGORY,
       image: product?.image ?? "",
-      sellingPrice: product?.sellingPrice?.toString() ?? "",
       defaultMarketSellingPrice:
         product?.defaultMarketSellingPrice != null
           ? String(product.defaultMarketSellingPrice)
@@ -201,9 +198,7 @@ function ProductFormDialog({
     const url = product ? `/api/products/${product._id}` : "/api/products";
     const method = product ? "PUT" : "POST";
 
-    const trimmedSobe = form.sellingPrice.trim();
     const trimmedMarket = form.defaultMarketSellingPrice.trim();
-    const sobebraRaw = parsePriceBodyField(trimmedSobe);
     const marketDefRaw = parsePriceBodyField(trimmedMarket);
 
     const body: Record<string, unknown> = {
@@ -218,17 +213,17 @@ function ProductFormDialog({
         toast({
           variant: "destructive",
           title: "Prix marché requis",
-          description: "Indiquez le prix de vente unitaire marché. Le prix SOBEBRA est optionnel.",
+          description: "Indiquez le prix de vente unitaire marché.",
         });
         return;
       }
-      const resolved = resolveCatalogPriceForImport(sobebraRaw, marketDefRaw);
+      const resolved = resolveCatalogPriceForImport(null, marketDefRaw);
       if (!resolved) {
         setIsSubmitting(false);
         toast({
           variant: "destructive",
           title: "Prix invalides",
-          description: "Le prix marché doit être valide. S’il y a un prix SOBEBRA, le marché doit être strictement supérieur.",
+          description: "Le prix marché doit être valide.",
         });
         return;
       }
@@ -239,35 +234,22 @@ function ProductFormDialog({
         trimmedMarket !== ""
           ? marketDefRaw
           : parsePriceBodyField(product.defaultMarketSellingPrice ?? null);
-      const s = trimmedSobe !== "" ? sobebraRaw : null;
 
-      if (trimmedMarket !== "" || trimmedSobe !== "") {
+      if (trimmedMarket !== "") {
         if (m != null && Number.isFinite(m) && m > 0) {
-          const resolved = resolveCatalogPriceForImport(s, m);
+          const resolved = resolveCatalogPriceForImport(null, m);
           if (!resolved) {
             setIsSubmitting(false);
             toast({
               variant: "destructive",
               title: "Prix invalides",
-              description:
-                "Si vous indiquez un prix SOBEBRA, il doit être strictement inférieur au prix marché.",
+              description: "Le prix marché doit être valide.",
             });
             return;
           }
           body.sellingPrice = resolved.sellingPrice;
           body.defaultMarketSellingPrice = resolved.defaultMarketSellingPrice;
-        } else if (trimmedSobe !== "") {
-          if (sobebraRaw == null) {
-            setIsSubmitting(false);
-            toast({
-              variant: "destructive",
-              title: "Prix SOBEBRA invalide",
-              description: "Saisissez un nombre valide ou laissez vide pour le déduire du marché.",
-            });
-            return;
-          }
-          body.sellingPrice = sobebraRaw;
-        } else if (trimmedMarket !== "") {
+        } else {
           setIsSubmitting(false);
           toast({
             variant: "destructive",
@@ -371,20 +353,6 @@ function ProductFormDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Prix unitaire SOBEBRA (FCFA)</Label>
-            <Input
-              type="number"
-              placeholder="1500 (optionnel)"
-              value={form.sellingPrice}
-              onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
-              min={0}
-            />
-            <p className="text-[11px] text-[#9CA3AF]">
-              Optionnel à la création : laissé vide ou à 0 lorsque le prix marché dépasse 1 FCFA, le SOBEBRA est
-              déduit (marché − 1). Sinon, il doit rester strictement inférieur au prix marché.
-            </p>
-          </div>
-          <div className="space-y-1.5">
             <Label>Prix de vente unitaire marché (FCFA)</Label>
             <Input
               type="number"
@@ -396,7 +364,7 @@ function ProductFormDialog({
             />
             <p className="text-[11px] text-[#9CA3AF]">
               Valeur proposée par défaut à l&apos;approvisionnement (modifiable sur chaque lot). Doit être
-              strictement supérieur au prix SOBEBRA.
+              strictement supérieur à 0.
             </p>
           </div>
           <DialogFooter className="gap-2">
@@ -442,18 +410,6 @@ function ProductImportDialog({
     ) {
       errors.push("Prix marché invalide");
     }
-    if (row.sellingPrice !== null) {
-      if (!Number.isFinite(row.sellingPrice) || row.sellingPrice < 0) {
-        errors.push("Prix SOBEBRA invalide");
-      } else if (
-        row.defaultMarketSellingPrice !== null &&
-        Number.isFinite(row.defaultMarketSellingPrice) &&
-        row.defaultMarketSellingPrice <= row.sellingPrice
-      ) {
-        errors.push("Prix marché <= prix SOBEBRA");
-      }
-    }
-
     return {
       ...row,
       valid: errors.length === 0,
@@ -524,7 +480,7 @@ function ProductImportDialog({
     const validRows = previewRows
       .filter((row) => row.valid && row.category)
       .map((row) => {
-        const resolved = resolveCatalogPriceForImport(row.sellingPrice, row.defaultMarketSellingPrice);
+        const resolved = resolveCatalogPriceForImport(null, row.defaultMarketSellingPrice);
         if (!resolved) return null;
         return {
           name: row.name.trim(),
@@ -541,7 +497,7 @@ function ProductImportDialog({
         variant: "destructive",
         title: "Aucune ligne valide",
         description:
-          "Complétez au minimum le nom, la catégorie et le prix marché. Le prix SOBEBRA et le lien image sont optionnels.",
+          "Complétez au minimum le nom, la catégorie et le prix marché. Le lien image est optionnel.",
       });
       return;
     }
@@ -581,9 +537,8 @@ function ProductImportDialog({
         <DialogHeader>
           <DialogTitle>Importer des produits</DialogTitle>
           <DialogDescription>
-            Importez un fichier Excel : Produit, Catégorie et prix marché sont requis ; prix SOBEBRA et lien image
-            sont optionnels (SOBEBRA absent = déduction automatique à partir du marché). Vous pouvez corriger le
-            tableau avant validation.
+            Importez un fichier Excel : Produit, Catégorie et prix marché sont requis ; le lien image est optionnel.
+            Vous pouvez corriger le tableau avant validation.
           </DialogDescription>
         </DialogHeader>
 
@@ -638,7 +593,6 @@ function ProductImportDialog({
                       <th className="text-left px-3 py-2 w-16">Ligne</th>
                       <th className="text-left px-3 py-2">Produit</th>
                       <th className="text-left px-3 py-2">Catégorie</th>
-                      <th className="text-right px-3 py-2 w-32">Prix SOBEBRA</th>
                       <th className="text-right px-3 py-2 w-32">Prix marché</th>
                       <th className="text-left px-3 py-2">Lien image</th>
                     </tr>
@@ -729,38 +683,6 @@ function ProductImportDialog({
                               ))}
                             </SelectContent>
                           </Select>
-                        </td>
-                        <td className="px-3 py-2 w-36">
-                          <Input
-                            type="number"
-                            min={0}
-                            step="any"
-                            className={cn("h-8 text-right", fieldErrorClass)}
-                            placeholder="0"
-                            value={
-                              row.sellingPrice !== null && Number.isFinite(row.sellingPrice)
-                                ? String(row.sellingPrice)
-                                : ""
-                            }
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              const sellingPrice =
-                                raw.trim() === "" || raw === "-" ? null : Number(raw);
-                              setPreviewRows((prev) =>
-                                prev.map((r, rIdx) =>
-                                  rIdx === idx
-                                    ? validateImportRow({
-                                        ...r,
-                                        sellingPrice:
-                                          sellingPrice !== null && Number.isFinite(sellingPrice)
-                                            ? sellingPrice
-                                            : null,
-                                      })
-                                    : r
-                                )
-                              );
-                            }}
-                          />
                         </td>
                         <td className="px-3 py-2 w-36">
                           <Input

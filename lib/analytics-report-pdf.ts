@@ -75,7 +75,6 @@ function safePercent(numerator: number, denominator: number): number {
 function buildInsights(report: AnalyticsReportPayload): string[] {
   const totalProfit = report.productProfits.reduce((sum, row) => sum + row.profit, 0);
   const marginRate = safePercent(totalProfit, report.summary.salesRevenue);
-  const averageSale = report.summary.salesCount > 0 ? report.summary.salesRevenue / report.summary.salesCount : 0;
   const supplyToRevenueRate = safePercent(report.summary.suppliesTotalCost, report.summary.salesRevenue);
   const topProductRevenueShare = report.topSellingProduct
     ? safePercent(report.topSellingProduct.revenue, report.summary.salesRevenue)
@@ -95,9 +94,6 @@ function buildInsights(report: AnalyticsReportPayload): string[] {
     `La rentabilité brute s'établit à ${formatCurrency(totalProfit)}, soit ${formatPercent(marginRate)} de marge sur le chiffre d'affaires.`
   );
   insights.push(
-    `Le ticket moyen ressort à ${formatCurrency(averageSale)} par vente, avec ${formatInteger(report.summary.suppliesCount)} opérations d'approvisionnement.`
-  );
-  insights.push(
     `Le coût des approvisionnements représente ${formatPercent(supplyToRevenueRate)} du chiffre d'affaires, indicateur clé de maîtrise des charges.`
   );
   if (report.topSellingProduct) {
@@ -115,14 +111,11 @@ function buildInsights(report: AnalyticsReportPayload): string[] {
 }
 
 function buildExecutiveSummary(report: AnalyticsReportPayload, totalProfit: number, marginRate: number): string[] {
-  const averageSale = report.summary.salesCount > 0 ? report.summary.salesRevenue / report.summary.salesCount : 0;
-  const supplyToRevenueRate = safePercent(report.summary.suppliesTotalCost, report.summary.salesRevenue);
   const topProductName = report.topSellingProduct?.name ?? "Aucun produit dominant";
 
   return [
     `Performance globale: ${formatCurrency(report.summary.salesRevenue)} de CA sur ${formatInteger(report.summary.salesCount)} ventes.`,
     `Rentabilité: ${formatCurrency(totalProfit)} de bénéfice brut, soit ${formatPercent(marginRate)} de marge.`,
-    `Structure des coûts: approvisionnements à ${formatPercent(supplyToRevenueRate)} du CA, ticket moyen à ${formatCurrency(averageSale)}.`,
     `Produit clé à surveiller: ${topProductName}.`,
   ];
 }
@@ -173,7 +166,6 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
   const companySubtitle = "BAR Restaurant";
   const generatedAt = new Date(report.generatedAt).toLocaleString("fr-FR");
   const dateRangeLabel = `Du ${report.period.startDate} au ${report.period.endDate}`;
-  const supplyToRevenueRate = safePercent(report.summary.suppliesTotalCost, report.summary.salesRevenue);
 
   const footer = () => {
     const pages = doc.getNumberOfPages();
@@ -193,16 +185,16 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
   doc.setDrawColor(...border);
   doc.line(0, 24, pageWidth, 24);
   if (companyLogo) {
-    doc.addImage(companyLogo, "PNG", margin, 6, 10, 10);
+    doc.addImage(companyLogo, "PNG", pageWidth / 2 - 5, 3, 10, 10);
   }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.setTextColor(...primary);
-  doc.text(companyName, margin + 13, 10.5);
+  doc.text(companyName, pageWidth / 2, 16, { align: "center" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...secondary);
-  doc.text(companySubtitle, margin + 13, 16);
+  doc.text(companySubtitle, pageWidth / 2, 20.5, { align: "center" });
 
   const drawSectionTitle = (title: string, startY: number): number => {
     doc.setFont("helvetica", "bold");
@@ -263,11 +255,6 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
 
   // 1) Informations de rapport
   let y = 34;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(...mutedText);
-  doc.text("RAPPORT EXECUTIF", pageWidth / 2, y, { align: "center" });
-  y += 7;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(...primary);
@@ -344,24 +331,6 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
   });
   y += 36;
 
-  y = ensureSpace(y, 40);
-  y = drawSectionTitle("Produit dominant", y);
-  doc.setFillColor(...softBg);
-  doc.setDrawColor(...border);
-  doc.roundedRect(margin, y, contentWidth, 28, 2, 2, "FD");
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(...secondary);
-  if (report.topSellingProduct) {
-    drawInfoLabelValue("PRODUIT", report.topSellingProduct.name, margin + 4, y + 6);
-    drawInfoLabelValue("UNITES", formatInteger(report.topSellingProduct.units), margin + 76, y + 6);
-    drawInfoLabelValue("REVENUS", formatCurrency(report.topSellingProduct.revenue), margin + 110, y + 6);
-    drawInfoLabelValue("BENEFICE", formatCurrency(report.topSellingProduct.profit), margin + 154, y + 6);
-  } else {
-    doc.text("Aucune vente sur la période.", margin + 4, y + 15);
-  }
-  y += 38;
-
   const tableCommon = {
     margin: { left: margin, right: margin },
     tableWidth: contentWidth,
@@ -394,20 +363,6 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
     y = drawSectionTitle(title, y);
   };
 
-  const addTableComment = (text: string) => {
-    const lines = doc.splitTextToSize(text.charAt(0).toUpperCase() + text.slice(1), contentWidth - 12);
-    const boxHeight = Math.max(12, lines.length * 4.4 + 6);
-    y = ensureSpace(y, boxHeight + 4);
-    doc.setFillColor(...softBg);
-    doc.setDrawColor(...border);
-    doc.roundedRect(margin, y, contentWidth, boxHeight, 2, 2, "FD");
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8.8);
-    doc.setTextColor(...mutedText);
-    doc.text(lines, margin + 4, y + 5.2);
-    y += boxHeight + 10;
-  };
-
   // 4) Données détaillées
   addSectionHeader("Détails des opérations");
   y = drawSubSectionTitle(`Approvisionnements (${formatInteger(report.supplies.length)})`, y);
@@ -417,13 +372,39 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
     head: [["Date", "Produit", "Quantité", "Coût"]],
     body:
       report.supplies.length > 0
-        ? report.supplies.map((row) => [
-            row.date,
-            row.productName,
-            formatInteger(row.totalUnits),
-            formatCurrency(row.totalCost),
-          ])
-        : [["-", "Aucun approvisionnement sur la période", "-", "-"]],
+        ? [
+            ...report.supplies.map((row) => [
+              row.date,
+              row.productName,
+              formatInteger(row.totalUnits),
+              formatCurrency(row.totalCost),
+            ]),
+            [
+              { content: "Total", colSpan: 2, styles: { fontStyle: "bold" } },
+              { content: formatInteger(report.summary.suppliesUnits), styles: { halign: "right", fontStyle: "bold" } },
+              {
+                content: formatCurrency(report.summary.suppliesTotalCost),
+                styles: { halign: "right", fontStyle: "bold" },
+              },
+            ],
+            [
+              {
+                content: `Commentaire: ${formatInteger(report.supplies.length)} approvisionnement(s) enregistré(s) sur cette période.`,
+                colSpan: 4,
+                styles: { fontStyle: "italic", textColor: mutedText },
+              },
+            ],
+          ]
+        : [
+            ["-", "Aucun approvisionnement sur la période", "-", "-"],
+            [
+              {
+                content: "Commentaire: aucune entrée d'approvisionnement n'a été enregistrée sur cette période.",
+                colSpan: 4,
+                styles: { fontStyle: "italic", textColor: mutedText },
+              },
+            ],
+          ],
     columnStyles: {
       0: { cellWidth: 22 },
       1: { cellWidth: 88 },
@@ -432,11 +413,6 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
     },
   });
   y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 12;
-  addTableComment(
-    report.supplies.length > 0
-      ? `${formatInteger(report.supplies.length)} approvisionnement(s) enregistré(s) sur cette période.`
-      : "aucune entrée d'approvisionnement n'a été enregistrée sur cette période."
-  );
 
   y = drawSubSectionTitle(`Ventes réalisées (${formatInteger(report.sales.length)})`, y);
   autoTable(doc, {
@@ -445,34 +421,63 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
     head: [["Date", "Serveuse", "Produits (Qté)", "Articles", "Montant vente", "Montant remis", "Monnaie"]],
     body:
       report.sales.length > 0
-        ? report.sales.map((row) => [
-            row.date,
-            row.waitressName,
-            row.saleItems.length > 0
-              ? row.saleItems.map((item) => `${item.productName} x${formatInteger(item.quantity)}`).join(", ")
-              : "-",
-            formatInteger(row.itemsCount),
-            formatCurrency(row.totalAmount),
-            formatCurrency(row.amountPaid),
-            formatCurrency(row.change),
-          ])
-        : [["-", "-", "-", "-", "Aucune vente réalisée", "-", "-"]],
+        ? [
+            ...report.sales.map((row) => [
+              row.date,
+              row.waitressName,
+              row.saleItems.length > 0
+                ? row.saleItems.map((item) => `${item.productName} x${formatInteger(item.quantity)}`).join(", ")
+                : "-",
+              formatInteger(row.itemsCount),
+              formatCurrency(row.totalAmount),
+              formatCurrency(row.amountPaid),
+              formatCurrency(row.change),
+            ]),
+            [
+              { content: "Total", colSpan: 3, styles: { fontStyle: "bold" } },
+              {
+                content: formatInteger(report.sales.reduce((sum, row) => sum + row.itemsCount, 0)),
+                styles: { halign: "right", fontStyle: "bold" },
+              },
+              { content: formatCurrency(report.summary.salesRevenue), styles: { halign: "right", fontStyle: "bold" } },
+              {
+                content: formatCurrency(report.sales.reduce((sum, row) => sum + row.amountPaid, 0)),
+                styles: { halign: "right", fontStyle: "bold" },
+              },
+              {
+                content: formatCurrency(report.sales.reduce((sum, row) => sum + row.change, 0)),
+                styles: { halign: "right", fontStyle: "bold" },
+              },
+            ],
+            [
+              {
+                content: `Commentaire: ${formatInteger(report.sales.length)} vente(s) clôturée(s), pour un total de ${formatCurrency(report.summary.salesRevenue)}.`,
+                colSpan: 7,
+                styles: { fontStyle: "italic", textColor: mutedText },
+              },
+            ],
+          ]
+        : [
+            ["-", "-", "-", "-", "Aucune vente réalisée", "-", "-"],
+            [
+              {
+                content: "Commentaire: aucune vente clôturée n'a été enregistrée sur la période.",
+                colSpan: 7,
+                styles: { fontStyle: "italic", textColor: mutedText },
+              },
+            ],
+          ],
     columnStyles: {
-      0: { cellWidth: 16 },
-      1: { cellWidth: 30 },
-      2: { cellWidth: 42 },
-      3: { cellWidth: 14, halign: "right" },
-      4: { cellWidth: 26, halign: "right" },
-      5: { cellWidth: 30, halign: "right" },
-      6: { cellWidth: 34, halign: "right" },
+      0: { cellWidth: 14 },
+      1: { cellWidth: 24 },
+      2: { cellWidth: 40 },
+      3: { cellWidth: 12, halign: "right" },
+      4: { cellWidth: 24, halign: "right" },
+      5: { cellWidth: 28, halign: "right" },
+      6: { cellWidth: 30, halign: "right" },
     },
   });
   y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 12;
-  addTableComment(
-    report.sales.length > 0
-      ? `${formatInteger(report.sales.length)} vente(s) clôturée(s), pour un total de ${formatCurrency(report.summary.salesRevenue)}.`
-      : "aucune vente clôturée n'a été enregistrée sur la période."
-  );
 
   y = drawSubSectionTitle(`Bénéfice par produit (${formatInteger(report.productProfits.length)})`, y);
   autoTable(doc, {
@@ -481,16 +486,51 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
     head: [["Produit", "Unités", "Revenus", "Bénéfice"]],
     body:
       report.productProfits.length > 0
-        ? report.productProfits
-            .slice()
-            .sort((a, b) => b.profit - a.profit)
-            .map((row) => [
-              row.name,
-              formatInteger(row.units),
-              formatCurrency(row.revenue),
-              formatCurrency(row.profit),
-            ])
-        : [["Aucun produit", "-", "-", "-"]],
+        ? [
+            ...report.productProfits
+              .slice()
+              .sort((a, b) => b.profit - a.profit)
+              .map((row) => [
+                row.name,
+                formatInteger(row.units),
+                formatCurrency(row.revenue),
+                formatCurrency(row.profit),
+              ]),
+            [
+              { content: "Total", styles: { fontStyle: "bold" } },
+              {
+                content: formatInteger(report.productProfits.reduce((sum, row) => sum + row.units, 0)),
+                styles: { halign: "right", fontStyle: "bold" },
+              },
+              {
+                content: formatCurrency(report.productProfits.reduce((sum, row) => sum + row.revenue, 0)),
+                styles: { halign: "right", fontStyle: "bold" },
+              },
+              {
+                content: formatCurrency(report.productProfits.reduce((sum, row) => sum + row.profit, 0)),
+                styles: { halign: "right", fontStyle: "bold" },
+              },
+            ],
+            [
+              {
+                content: report.topSellingProduct
+                  ? `Commentaire: le produit dominant est "${report.topSellingProduct.name}" avec ${formatInteger(report.topSellingProduct.units)} unités vendues.`
+                  : "Commentaire: aucun produit dominant n'a pu être identifié sur cette période.",
+                colSpan: 4,
+                styles: { fontStyle: "italic", textColor: mutedText },
+              },
+            ],
+          ]
+        : [
+            ["Aucun produit", "-", "-", "-"],
+            [
+              {
+                content: "Commentaire: aucun produit dominant n'a pu être identifié sur cette période.",
+                colSpan: 4,
+                styles: { fontStyle: "italic", textColor: mutedText },
+              },
+            ],
+          ],
     columnStyles: {
       0: { cellWidth: 76 },
       1: { cellWidth: 22, halign: "right" },
@@ -499,11 +539,6 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
     },
   });
   y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 12;
-  addTableComment(
-    report.topSellingProduct
-      ? `le produit dominant est "${report.topSellingProduct.name}" avec ${formatInteger(report.topSellingProduct.units)} unités vendues.`
-      : "aucun produit dominant n'a pu être identifié sur cette période."
-  );
 
   // 5) Analyse / insights
   y = ensureSpace(y, 68);
@@ -511,9 +546,6 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
   const alertMessages: string[] = [];
   if (marginRate < 12 && report.summary.salesRevenue > 0) {
     alertMessages.push("Marge brute faible sur la période, à surveiller.");
-  }
-  if (supplyToRevenueRate > 70) {
-    alertMessages.push("Ratio coût d'approvisionnement / CA élevé.");
   }
   if (report.summary.salesCount === 0) {
     alertMessages.push("Aucune vente enregistrée sur la période.");

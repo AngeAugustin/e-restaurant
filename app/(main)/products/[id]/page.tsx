@@ -114,7 +114,7 @@ export default function ProductDetailPage() {
     ? null
     : product.defaultMarketSellingPrice != null
       ? "Prix vente marché par défaut (fiche produit)"
-      : "Prix catalogue SOBEBRA";
+      : "Prix fiche produit";
 
   return (
     <div className="space-y-6">
@@ -162,10 +162,6 @@ export default function ProductDetailPage() {
                   )}
                 </div>
                 <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-[#6B7280] md:justify-start">
-                  <p>
-                    Prix SOBEBRA (catalogue) :{" "}
-                    <span className="font-medium text-[#0D0D0D]">{formatCurrency(product.sellingPrice)}</span>
-                  </p>
                   {product.defaultMarketSellingPrice != null && (
                     <p>
                       Prix marché par défaut à l&apos;appro :{" "}
