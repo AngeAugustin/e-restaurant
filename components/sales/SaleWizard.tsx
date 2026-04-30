@@ -450,47 +450,49 @@ export default function SaleWizard({
                   {availableProducts.length} produit{availableProducts.length !== 1 ? "s" : ""} en stock
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                {availableProducts.map((product) => {
-                  const inCart = cart.find((i) => i.productId === product._id);
-                  return (
-                    <button
-                      key={product._id}
-                      type="button"
-                      onClick={() => addToCart(product)}
-                      disabled={!!inCart}
-                      className={cn(
-                        "flex min-h-[5.25rem] items-center gap-3 rounded-xl border-2 p-3 text-left transition-all",
-                        inCart
-                          ? "border-primary bg-primary text-primary-foreground opacity-90 shadow-sm"
-                          : "border-primary/25 bg-gradient-to-br from-white to-primary/[0.04] hover:border-primary hover:bg-primary/[0.06] hover:shadow-md"
-                      )}
-                    >
-                      <ProductThumb
-                        imageUrl={product.image}
-                        name={product.name}
-                        sizeClass="h-16 w-16"
-                        variant={inCart ? "dark" : "light"}
-                      />
-                      <div className="min-w-0 flex-1 flex flex-col items-stretch text-left py-0.5">
-                        <p
-                          className={cn(
-                            "text-sm font-semibold line-clamp-2",
-                            inCart ? "text-primary-foreground" : "text-primary"
-                          )}
-                        >
-                          {product.name}
-                        </p>
-                        <p className={cn("text-xs mt-1", inCart ? "text-primary-foreground/80" : "text-[#374151]")}>
-                          {formatCurrency(product.marketSellingPrice)}
-                        </p>
-                        <p className={cn("text-xs mt-auto pt-1.5", inCart ? "text-primary-foreground/60" : "text-[#9CA3AF]")}>
-                          Stock {product.stock}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
+              <div className="max-h-[22rem] overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {availableProducts.map((product) => {
+                    const inCart = cart.find((i) => i.productId === product._id);
+                    return (
+                      <button
+                        key={product._id}
+                        type="button"
+                        onClick={() => addToCart(product)}
+                        disabled={!!inCart}
+                        className={cn(
+                          "flex min-h-[5.25rem] items-center gap-3 rounded-xl border-2 p-3 text-left transition-all",
+                          inCart
+                            ? "border-primary bg-primary text-primary-foreground opacity-90 shadow-sm"
+                            : "border-primary/25 bg-gradient-to-br from-white to-primary/[0.04] hover:border-primary hover:bg-primary/[0.06] hover:shadow-md"
+                        )}
+                      >
+                        <ProductThumb
+                          imageUrl={product.image}
+                          name={product.name}
+                          sizeClass="h-16 w-16"
+                          variant={inCart ? "dark" : "light"}
+                        />
+                        <div className="min-w-0 flex-1 flex flex-col items-stretch text-left py-0.5">
+                          <p
+                            className={cn(
+                              "text-sm font-semibold line-clamp-2",
+                              inCart ? "text-primary-foreground" : "text-primary"
+                            )}
+                          >
+                            {product.name}
+                          </p>
+                          <p className={cn("text-xs mt-1", inCart ? "text-primary-foreground/80" : "text-[#374151]")}>
+                            {formatCurrency(product.marketSellingPrice)}
+                          </p>
+                          <p className={cn("text-xs mt-auto pt-1.5", inCart ? "text-primary-foreground/60" : "text-[#9CA3AF]")}>
+                            Stock {product.stock}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -515,7 +517,7 @@ export default function SaleWizard({
                   {cart.length === 0 ? (
                     <div className="p-8 text-center text-sm text-[#9CA3AF]">Votre panier est vide</div>
                   ) : (
-                    <div className="divide-y divide-[#F5F5F5] max-h-[min(420px,50vh)] overflow-y-auto">
+                    <div className="max-h-[15rem] divide-y divide-[#F5F5F5] overflow-y-auto">
                       {cart.map((item) => (
                         <div key={item.productId} className="flex items-center gap-3 p-4">
                           <ProductThumb
