@@ -43,6 +43,7 @@ async function fetchProfile(): Promise<ProfileResponse> {
 
 const roleLabel: Record<UserRole, string> = {
   directeur: "Directeur",
+  directrice: "Directrice",
   gerant: "Gérant",
 };
 

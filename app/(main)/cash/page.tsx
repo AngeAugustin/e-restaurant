@@ -248,7 +248,7 @@ export default function CashPage() {
   const { data: sessions, isLoading } = useQuery({
     queryKey: ["cash-sessions"],
     queryFn: fetchCashSessions,
-    enabled: ["directeur", "gerant"].includes(session?.user?.role ?? ""),
+    enabled: ["directeur", "gerant", "directrice"].includes(session?.user?.role ?? ""),
   });
 
   const [openCreate, setOpenCreate] = useState(false);
@@ -404,8 +404,8 @@ export default function CashPage() {
     }
   }
 
-  if (!["directeur", "gerant"].includes(session?.user?.role ?? "")) {
-    return <p className="py-20 text-center text-[#9CA3AF]">Accès réservé aux directeurs et gérants.</p>;
+  if (!["directeur", "gerant", "directrice"].includes(session?.user?.role ?? "")) {
+    return <p className="py-20 text-center text-[#9CA3AF]">Accès réservé aux directeurs, aux directrices et gérants.</p>;
   }
 
   return (

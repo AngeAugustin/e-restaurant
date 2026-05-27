@@ -36,16 +36,16 @@ import {
 } from "@/components/ui/dialog";
 
 const navItems = [
-  { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, roles: ["directeur", "gerant"] },
-  { href: "/products", label: "Produits", icon: Package, roles: ["directeur"] },
-  { href: "/supplies", label: "Approvisionnements", icon: TruckIcon, roles: ["directeur", "gerant"] },
-  { href: "/sales", label: "Ventes", icon: ShoppingCart, roles: ["directeur", "gerant"] },
-  { href: "/cash", label: "Caisse", icon: Wallet, roles: ["directeur", "gerant"] },
-  { href: "/waitresses", label: "Serveuses", icon: UserRound, roles: ["directeur"] },
-  { href: "/tables", label: "Tables", icon: Table2, roles: ["directeur"] },
-  { href: "/analytics", label: "Analytiques", icon: BarChart3, roles: ["directeur"] },
-  { href: "/users", label: "Utilisateurs", icon: Users, roles: ["directeur"] },
-  { href: "/settings", label: "Paramètres", icon: Settings2, roles: ["directeur"] },
+  { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, roles: ["directeur", "directrice", "gerant"] },
+  { href: "/products", label: "Produits", icon: Package, roles: ["directeur", "directrice"] },
+  { href: "/supplies", label: "Approvisionnements", icon: TruckIcon, roles: ["directeur", "directrice", "gerant"] },
+  { href: "/sales", label: "Ventes", icon: ShoppingCart, roles: ["directeur", "directrice", "gerant"] },
+  { href: "/cash", label: "Caisse", icon: Wallet, roles: ["directeur", "directrice", "gerant"] },
+  { href: "/waitresses", label: "Serveuses", icon: UserRound, roles: ["directeur", "directrice"] },
+  { href: "/tables", label: "Tables", icon: Table2, roles: ["directeur", "directrice"] },
+  { href: "/analytics", label: "Analytiques", icon: BarChart3, roles: ["directeur", "directrice"] },
+  { href: "/users", label: "Utilisateurs", icon: Users, roles: ["directeur", "directrice"] },
+  { href: "/settings", label: "Paramètres", icon: Settings2, roles: ["directeur", "directrice"] },
 ];
 
 export function Sidebar() {

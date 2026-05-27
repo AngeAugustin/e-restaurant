@@ -28,6 +28,15 @@ export async function POST() {
       address: "Restaurant",
       role: "gerant",
     },
+    {
+      firstName: "Aisha",
+      lastName: "Diop",
+      email: "directrice@restaurant.com",
+      password: "Directrice123!",
+      phone: "0700000003",
+      address: "Restaurant",
+      role: "directrice",
+    },
   ];
 
   for (const u of defaultUsers) {
@@ -63,6 +72,7 @@ export async function POST() {
     message: "Base de données initialisée avec succès",
     credentials: [
       { role: "directeur", email: "directeur@restaurant.com", password: "Admin123!" },
+      { role: "directrice", email: "directrice@restaurant.com", password: "Directrice123!" },
       { role: "gerant", email: "gerant@restaurant.com", password: "Gerant123!" },
     ],
   });

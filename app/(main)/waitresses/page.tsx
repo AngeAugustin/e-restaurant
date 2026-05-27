@@ -128,10 +128,12 @@ export default function WaitressesPage() {
   const { data: session, status } = useSession();
   const qc = useQueryClient();
 
+  const canManageWaitresses = ["directeur", "directrice"].includes(session?.user?.role ?? "");
+  const isDirector = session?.user?.role === "directeur";
   const { data: waitresses, isLoading } = useQuery({
     queryKey: ["waitresses"],
     queryFn: fetchWaitresses,
-    enabled: session?.user?.role === "directeur",
+    enabled: canManageWaitresses,
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -177,8 +179,8 @@ export default function WaitressesPage() {
   }, [pageSize]);
 
   if (status === "loading") return <Skeleton className="h-96" />;
-  if (session?.user?.role !== "directeur") {
-    return <p className="py-20 text-center text-[#9CA3AF]">Accès réservé au directeur.</p>;
+  if (!canManageWaitresses) {
+    return <p className="py-20 text-center text-[#9CA3AF]">Accès réservé à la direction.</p>;
   }
 
   return (
@@ -307,16 +309,18 @@ export default function WaitressesPage() {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-9 w-9 rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm backdrop-blur-sm transition hover:border-rose-300 hover:bg-rose-500/12 hover:text-rose-700"
-                          onClick={() => setWaitressPendingDelete(w)}
-                          aria-label={`Supprimer ${w.firstName} ${w.lastName}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {isDirector && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm backdrop-blur-sm transition hover:border-rose-300 hover:bg-rose-500/12 hover:text-rose-700"
+                            onClick={() => setWaitressPendingDelete(w)}
+                            aria-label={`Supprimer ${w.firstName} ${w.lastName}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

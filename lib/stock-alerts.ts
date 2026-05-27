@@ -59,7 +59,7 @@ function formatFrenchDateTime(d: Date): string {
 }
 
 async function getDirectorEmails(): Promise<string[]> {
-  const directors = await User.find({ role: "directeur" }).select("email").lean();
+  const directors = await User.find({ role: { $in: ["directeur", "directrice"] } }).select("email").lean();
   return directors.map((u) => u.email).filter(Boolean);
 }
 

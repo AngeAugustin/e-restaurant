@@ -70,9 +70,9 @@ export async function PUT(req: NextRequest) {
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "lowStockAlertEmails")) {
-    if (session?.user?.role !== "directeur") {
+    if (!["directeur", "directrice"].includes(session?.user?.role ?? "")) {
       return NextResponse.json(
-        { error: "Seul un directeur peut modifier les destinataires d'alerte" },
+        { error: "Seules les directrices et les directeurs peuvent modifier les destinataires d'alerte" },
         { status: 403 }
       );
     }
@@ -84,9 +84,9 @@ export async function PUT(req: NextRequest) {
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "lowStockAlertThreshold")) {
-    if (session?.user?.role !== "directeur") {
+    if (!["directeur", "directrice"].includes(session?.user?.role ?? "")) {
       return NextResponse.json(
-        { error: "Seul un directeur peut modifier le seuil d'alerte" },
+        { error: "Seules les directrices et les directeurs peuvent modifier le seuil d'alerte" },
         { status: 403 }
       );
     }
@@ -115,9 +115,9 @@ export async function PUT(req: NextRequest) {
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "solutionName")) {
-    if (session?.user?.role !== "directeur") {
+    if (!["directeur", "directrice"].includes(session?.user?.role ?? "")) {
       return NextResponse.json(
-        { error: "Seul un directeur peut modifier le nom de la solution" },
+        { error: "Seules les directrices et les directeurs peuvent modifier le nom de la solution" },
         { status: 403 }
       );
     }

@@ -5,7 +5,7 @@ import RestaurantTable from "@/models/RestaurantTable";
 import Sale from "@/models/Sale";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = await requireAuth(["directeur"]);
+  const { error } = await requireAuth(["directeur", "directrice"]);
   if (error) return error;
 
   await connectDB();

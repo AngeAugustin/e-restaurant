@@ -194,6 +194,7 @@ function UserDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="directeur">Directeur</SelectItem>
+                  <SelectItem value="directrice">Directrice</SelectItem>
                   <SelectItem value="gerant">Gérant</SelectItem>
                 </SelectContent>
               </Select>
@@ -222,12 +223,13 @@ function UserDialog({
 export default function UsersPage() {
   const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100] as const;
   const { data: session, status } = useSession();
+  const isDirector = session?.user?.role === "directeur";
   const qc = useQueryClient();
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: fetchUsers,
-    enabled: session?.user?.role === "directeur",
+    enabled: ["directeur", "directrice"].includes(session?.user?.role ?? ""),
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -251,7 +253,7 @@ export default function UsersPage() {
   });
 
   const totalUsers = users?.length ?? 0;
-  const directors = users?.filter((u) => u.role === "directeur").length ?? 0;
+  const directionCount = users?.filter((u) => u.role === "directeur" || u.role === "directrice").length ?? 0;
   const managers = users?.filter((u) => u.role === "gerant").length ?? 0;
   const paginatedUsers = (users ?? []).slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalPages = Math.max(1, Math.ceil((users?.length ?? 0) / pageSize));
@@ -268,8 +270,8 @@ export default function UsersPage() {
   }, [pageSize]);
 
   if (status === "loading") return <Skeleton className="h-96" />;
-  if (session?.user?.role !== "directeur") {
-    return <p className="text-center py-20 text-[#9CA3AF]">Accès réservé au Directeur</p>;
+  if (!["directeur", "directrice"].includes(session?.user?.role ?? "")) {
+    return <p className="text-center py-20 text-[#9CA3AF]">Accès réservé à la direction</p>;
   }
 
   return (
@@ -292,7 +294,7 @@ export default function UsersPage() {
         ) : (
           <>
             <StatsCard title="Total utilisateurs" value={totalUsers} icon={Users} index={0} />
-            <StatsCard title="Directeurs" value={directors} icon={Shield} variant="dark" index={1} />
+            <StatsCard title="Direction" value={directionCount} icon={Shield} variant="dark" index={1} />
             <StatsCard title="Gérants" value={managers} icon={UserCheck} index={2} />
           </>
         )}
@@ -364,9 +366,9 @@ export default function UsersPage() {
                         <span className="block truncate font-medium text-slate-600">{user.email}</span>
                       </td>
                       <td className="px-4 py-4">
-                        {user.role === "directeur" ? (
+                        {user.role === "directeur" || user.role === "directrice" ? (
                           <span className="inline-flex items-center rounded-full border border-violet-200/60 bg-violet-500/12 px-2.5 py-0.5 text-xs font-semibold text-violet-800 backdrop-blur-[2px]">
-                            Directeur
+                            {user.role === "directeur" ? "Directeur" : "Directrice"}
                           </span>
                         ) : (
                           <span className="inline-flex items-center rounded-full border border-sky-200/60 bg-sky-500/12 px-2.5 py-0.5 text-xs font-semibold text-sky-900 backdrop-blur-[2px]">
@@ -402,7 +404,7 @@ export default function UsersPage() {
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          {user._id !== session?.user?.id && (
+                          {isDirector && user._id !== session?.user?.id && (
                             <Button
                               type="button"
                               variant="outline"

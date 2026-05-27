@@ -7,7 +7,7 @@ export interface IUserDocument extends Document {
   password: string;
   phone: string;
   address: string;
-  role: "directeur" | "gerant";
+  role: "directeur" | "directrice" | "gerant";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,7 +49,7 @@ const UserSchema = new Schema<IUserDocument>(
     },
     role: {
       type: String,
-      enum: ["directeur", "gerant"],
+      enum: ["directeur", "directrice", "gerant"],
       required: [true, "Le rôle est requis"],
     },
   },

@@ -16,7 +16,7 @@ function extensionForMimeType(mimeType: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAuth(["directeur"]);
+  const { error } = await requireAuth(["directeur","directrice"]);
   if (error) return error;
 
   await connectDB();

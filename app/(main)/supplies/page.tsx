@@ -45,6 +45,7 @@ interface ProductOption {
   marketSellingPrice: number;
   quantiteStandardPack?: number;
   prixCasier?: number;
+  purchaseUnitCost?: number;
 }
 
 async function fetchSupplies(): Promise<ISupply[]> {
@@ -54,7 +55,7 @@ async function fetchSupplies(): Promise<ISupply[]> {
 }
 
 async function fetchProducts(): Promise<ProductOption[]> {
-  const res = await fetch("/api/products");
+  const res = await fetch("/api/products/stock");
   if (!res.ok) throw new Error("Failed to fetch");
   return res.json();
 }
@@ -71,6 +72,7 @@ interface SupplyForm {
   lotPrice: string;
   numberOfLots: string;
   marketSellingPrice: string;
+  lotPriceTouched?: boolean;
 }
 
 type SupplyDraftLine = SupplyForm & { id: string };
@@ -82,11 +84,13 @@ const emptyForm = (): SupplyForm => ({
   lotPrice: "",
   numberOfLots: "",
   marketSellingPrice: "",
+  lotPriceTouched: false,
 });
 
 const newDraftLine = (): SupplyDraftLine => ({
   id: globalThis.crypto?.randomUUID?.() ?? `line-${Date.now()}-${Math.random()}`,
   ...emptyForm(),
+  lotPriceTouched: false,
 });
 
 function isLineComplete(line: SupplyForm, products: ProductOption[] | undefined): boolean {
@@ -137,6 +141,45 @@ function supplyLineRecapValues(line: SupplyForm) {
   };
 }
 
+function renderSupplyRecapText(line: SupplyForm) {
+  const recap = supplyLineRecapValues(line);
+  if (line.lotSizeMode === "custom") {
+    return (
+      <>
+        <span className="font-semibold text-primary-foreground">{recap.taille ?? "—"}</span>{" "}
+        unité{recap.taille === 1 ? "" : "s"}{" "}
+        à <span className="font-semibold text-primary-foreground">
+          {recap.prixCasier != null ? formatCurrency(recap.prixCasier) : "—"}
+        </span>{" "}
+        par casier, soit <span className="font-semibold text-primary-foreground">
+          {recap.montantCasiers != null ? formatCurrency(recap.montantCasiers) : "—"}
+        </span>{" "}
+        pour ce produit.
+      </>
+    );
+  }
+
+  return (
+    <>
+      <span className="font-semibold text-primary-foreground">{recap.nbCasiers ?? "—"}</span>{" "}
+      {recap.nbCasiers === 1 ? "casier" : "casiers"} de <span className="font-semibold text-primary-foreground">
+        {recap.taille ?? "—"}
+      </span>{" "}
+      unité{recap.taille === 1 ? "" : "s"} à <span className="font-semibold text-primary-foreground">
+        {recap.prixCasier != null ? formatCurrency(recap.prixCasier) : "—"}
+      </span>{" "}
+      par casier, soit <span className="font-semibold text-primary-foreground">
+        {recap.montantCasiers != null ? formatCurrency(recap.montantCasiers) : "—"}
+      </span>{recap.totalUnites != null ? (
+        <span className="text-primary-foreground/75">
+          {" "}({recap.totalUnites} unité{recap.totalUnites > 1 ? "s" : ""} au total)
+        </span>
+      ) : null}
+      .
+    </>
+  );
+}
+
 function productIdFromSupply(s: ISupply): string {
   const p = s.product;
   if (typeof p === "string") return p;
@@ -159,6 +202,14 @@ function lotDefaultsFromProductCatalog(p: Pick<ProductOption, "quantiteStandardP
     return { lotSize: String(q), lotSizeMode: "preset", lotPrice };
   }
   return { lotSize: String(q), lotSizeMode: "custom", lotPrice };
+}
+
+function customLotPriceFromPurchaseUnitCost(product: ProductOption | undefined, lotSize: number) {
+  if (!product) return null;
+  const cost = product.purchaseUnitCost ?? NaN;
+  if (!Number.isFinite(cost) || cost <= 0 || !Number.isFinite(lotSize) || lotSize < 1) return null;
+  // Round up to the next whole franc (no decimals allowed)
+  return Math.ceil(cost * lotSize);
 }
 
 function ProductCatalogPackHint({ product }: { product: ProductOption }) {
@@ -357,6 +408,7 @@ function SupplyDialog({
                       marketSellingPrice: pref,
                       ...pack,
                       numberOfLots: pack.lotSizeMode === "custom" ? "1" : form.numberOfLots,
+                      lotPriceTouched: false,
                     });
                   }}
                 >
@@ -392,7 +444,22 @@ function SupplyDialog({
                       if (v === SUPPLY_LOT_SIZE_SELECT_OTHER) {
                         setForm({ ...form, lotSizeMode: "custom", lotSize: "", numberOfLots: "1" });
                       } else {
-                        setForm({ ...form, lotSizeMode: "preset", lotSize: v });
+                        // preset selected: possibly recalc lotPrice from last purchase unit cost
+                        const lotSizeNum = Number(v);
+                        const product = products?.find((p) => p._id === form.productId);
+                        const defaultCasierPrice = product?.prixCasier;
+                        const purchaseUnitCost = product?.purchaseUnitCost ?? NaN;
+                        let nextLotPrice = form.lotPrice;
+                        const shouldOverride = !form.lotPriceTouched;
+                        if (shouldOverride) {
+                          if (Number.isFinite(purchaseUnitCost) && purchaseUnitCost > 0) {
+                            nextLotPrice = String(Math.ceil(purchaseUnitCost * lotSizeNum));
+                          } else if (defaultCasierPrice != null && Number.isFinite(defaultCasierPrice)) {
+                            nextLotPrice = String(defaultCasierPrice);
+                          }
+                        }
+
+                        setForm({ ...form, lotSizeMode: "preset", lotSize: v, lotPrice: nextLotPrice, lotPriceTouched: false });
                       }
                     }}
                   >
@@ -415,21 +482,32 @@ function SupplyDialog({
                       step={1}
                       placeholder="Nombre d’unités (entier)"
                       value={form.lotSize}
-                      onChange={(e) => setForm({ ...form, lotSize: e.target.value })}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        const lotSize = Number(value);
+                        const product = products?.find((p) => p._id === form.productId);
+                        const customPrice = customLotPriceFromPurchaseUnitCost(product, lotSize);
+                        setForm({
+                          ...form,
+                          lotSize: value,
+                          lotPrice: customPrice != null ? String(customPrice) : form.lotPrice,
+                          lotPriceTouched: customPrice != null ? false : form.lotPriceTouched,
+                        });
+                      }}
                       required
                     />
                   ) : null}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Prix du casier (FCFA)</Label>
-                  <Input
-                    type="number"
-                    placeholder="5000"
-                    value={form.lotPrice}
-                    onChange={(e) => setForm({ ...form, lotPrice: e.target.value })}
-                    required
-                    min={0}
-                  />
+                    <Input
+                      type="number"
+                      placeholder="5000"
+                      value={form.lotPrice}
+                      onChange={(e) => setForm({ ...form, lotPrice: e.target.value, lotPriceTouched: true })}
+                      required
+                      min={0}
+                    />
                 </div>
               </div>
 
@@ -475,25 +553,7 @@ function SupplyDialog({
                       Récapitulatif
                     </p>
                     <p className="text-sm leading-relaxed text-primary-foreground/90">
-                      <span className="font-semibold text-primary-foreground">{recapEdit.nbCasiers ?? "—"}</span>{" "}
-                      {recapEdit.nbCasiers === 1 ? "casier" : "casiers"} de{" "}
-                      <span className="font-semibold text-primary-foreground">{recapEdit.taille ?? "—"}</span>{" "}
-                      unité{recapEdit.taille === 1 ? "" : "s"} à{" "}
-                      <span className="font-semibold text-primary-foreground">
-                        {recapEdit.prixCasier != null ? formatCurrency(recapEdit.prixCasier) : "—"}
-                      </span>{" "}
-                      par casier, soit{" "}
-                      <span className="font-semibold text-primary-foreground">
-                        {recapEdit.montantCasiers != null ? formatCurrency(recapEdit.montantCasiers) : "—"}
-                      </span>{" "}
-                      pour ce produit
-                      {recapEdit.totalUnites != null ? (
-                        <span className="text-primary-foreground/75">
-                          {" "}
-                          ({recapEdit.totalUnites} unité{recapEdit.totalUnites > 1 ? "s" : ""} au total)
-                        </span>
-                      ) : null}
-                      .
+                      {renderSupplyRecapText(form)}
                     </p>
                   </div>
                 );
@@ -561,6 +621,7 @@ function SupplyDialog({
                                   marketSellingPrice: pref,
                                   ...pack,
                                   numberOfLots: pack.lotSizeMode === "custom" ? "1" : line.numberOfLots,
+                                  lotPriceTouched: false,
                                 });
                               }}
                             >
@@ -592,7 +653,21 @@ function SupplyDialog({
                                   if (v === SUPPLY_LOT_SIZE_SELECT_OTHER) {
                                     updateLine(line.id, { lotSizeMode: "custom", lotSize: "", numberOfLots: "1" });
                                   } else {
-                                    updateLine(line.id, { lotSizeMode: "preset", lotSize: v });
+                                    const lotSizeNum = Number(v);
+                                    const product = products?.find((p) => p._id === line.productId);
+                                    const defaultCasierPrice = product?.prixCasier;
+                                    const purchaseUnitCost = product?.purchaseUnitCost ?? NaN;
+                                    const currentLotPrice = line.lotPrice;
+                                    const shouldOverride = !line.lotPriceTouched;
+                                    let nextLotPrice = currentLotPrice;
+                                    if (shouldOverride) {
+                                      if (Number.isFinite(purchaseUnitCost) && purchaseUnitCost > 0) {
+                                        nextLotPrice = String(Math.ceil(purchaseUnitCost * lotSizeNum));
+                                      } else if (defaultCasierPrice != null && Number.isFinite(defaultCasierPrice)) {
+                                        nextLotPrice = String(defaultCasierPrice);
+                                      }
+                                    }
+                                    updateLine(line.id, { lotSizeMode: "preset", lotSize: v, lotPrice: nextLotPrice, lotPriceTouched: false });
                                   }
                                 }}
                               >
@@ -615,7 +690,17 @@ function SupplyDialog({
                                   step={1}
                                   placeholder="Nombre d’unités (entier)"
                                   value={line.lotSize}
-                                  onChange={(e) => updateLine(line.id, { lotSize: e.target.value })}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    const lotSize = Number(value);
+                                    const product = products?.find((p) => p._id === line.productId);
+                                    const customPrice = customLotPriceFromPurchaseUnitCost(product, lotSize);
+                                    updateLine(line.id, {
+                                      lotSize: value,
+                                      lotPrice: customPrice != null ? String(customPrice) : line.lotPrice,
+                                      lotPriceTouched: customPrice != null ? false : line.lotPriceTouched,
+                                    });
+                                  }}
                                   required
                                 />
                               ) : null}
@@ -626,7 +711,7 @@ function SupplyDialog({
                                 type="number"
                                 placeholder="5000"
                                 value={line.lotPrice}
-                                onChange={(e) => updateLine(line.id, { lotPrice: e.target.value })}
+                                onChange={(e) => updateLine(line.id, { lotPrice: e.target.value, lotPriceTouched: true })}
                                 min={0}
                               />
                             </div>
@@ -668,28 +753,7 @@ function SupplyDialog({
                             Récapitulatif
                           </p>
                           <p className="text-sm leading-relaxed text-primary-foreground/90">
-                            <span className="font-semibold text-primary-foreground">
-                              {recap.nbCasiers ?? "—"}
-                            </span>{" "}
-                            {recap.nbCasiers === 1 ? "casier" : "casiers"} de{" "}
-                            <span className="font-semibold text-primary-foreground">{recap.taille ?? "—"}</span>{" "}
-                            unité{recap.taille === 1 ? "" : "s"} à{" "}
-                            <span className="font-semibold text-primary-foreground">
-                              {recap.prixCasier != null ? formatCurrency(recap.prixCasier) : "—"}
-                            </span>{" "}
-                            par casier, soit{" "}
-                            <span className="font-semibold text-primary-foreground">
-                              {recap.montantCasiers != null ? formatCurrency(recap.montantCasiers) : "—"}
-                            </span>{" "}
-                            pour ce produit
-                            {recap.totalUnites != null ? (
-                              <span className="text-primary-foreground/75">
-                                {" "}
-                                ({recap.totalUnites} unité{recap.totalUnites > 1 ? "s" : ""} au total).
-                              </span>
-                            ) : (
-                              "."
-                            )}
+                            {renderSupplyRecapText(line)}
                           </p>
                         </div>
                       ) : null}
@@ -740,6 +804,7 @@ function SupplyDialog({
 export default function SuppliesPage() {
   const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100] as const;
   const { data: session } = useSession();
+  const canManageSupplies = ["directeur", "directrice"].includes(session?.user?.role ?? "");
   const isDirector = session?.user?.role === "directeur";
   const qc = useQueryClient();
   const { data: supplies, isLoading } = useQuery({
@@ -860,7 +925,7 @@ export default function SuppliesPage() {
           emptyMessage="Aucun approvisionnement enregistré"
           skeletonRows={5}
           tableMinWidthClass="min-w-[980px]"
-          skeletonColSpan={isDirector ? 8 : 7}
+          skeletonColSpan={canManageSupplies ? 8 : 7}
         >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] border-collapse text-left text-sm">
@@ -873,7 +938,7 @@ export default function SuppliesPage() {
                   <th className="whitespace-nowrap px-4 py-3.5 text-right font-semibold">Coût total</th>
                   <th className="whitespace-nowrap px-4 py-3.5 text-right font-semibold">Prix vente</th>
                   <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Enregistré par</th>
-                  {isDirector && (
+                  {canManageSupplies && (
                     <th className="whitespace-nowrap px-6 py-3.5 text-right font-semibold">Actions</th>
                   )}
                 </tr>
@@ -916,7 +981,7 @@ export default function SuppliesPage() {
                           {user?.firstName} {user?.lastName}
                         </span>
                       </td>
-                      {isDirector && (
+                      {canManageSupplies && (
                         <td className="px-6 py-4 text-right">
                           <div className="inline-flex justify-end gap-1 opacity-90 transition group-hover:opacity-100">
                             <Button
@@ -929,16 +994,18 @@ export default function SuppliesPage() {
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-9 w-9 rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm backdrop-blur-sm transition hover:border-rose-300 hover:bg-rose-500/12 hover:text-rose-700"
-                              onClick={() => setSupplyToDelete(supply)}
-                              aria-label="Supprimer"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {isDirector && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9 rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm backdrop-blur-sm transition hover:border-rose-300 hover:bg-rose-500/12 hover:text-rose-700"
+                                onClick={() => setSupplyToDelete(supply)}
+                                aria-label="Supprimer"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </td>
                       )}

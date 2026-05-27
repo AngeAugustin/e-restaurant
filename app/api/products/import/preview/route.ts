@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { error } = await requireAuth(["directeur"]);
+    const { error } = await requireAuth(["directeur","directrice"]);
     if (error) return error;
 
     const formData = await req.formData();

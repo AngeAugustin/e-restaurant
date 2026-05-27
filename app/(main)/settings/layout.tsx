@@ -3,7 +3,7 @@ import { getCachedServerSession } from "@/lib/get-session";
 
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   const session = await getCachedServerSession();
-  if (session?.user?.role !== "directeur") {
+  if (!["directeur", "directrice"].includes(session?.user?.role ?? "")) {
     redirect("/dashboard");
   }
   return <>{children}</>;

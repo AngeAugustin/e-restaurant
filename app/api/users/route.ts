@@ -5,7 +5,7 @@ import User from "@/models/User";
 import bcrypt from "bcryptjs";
 
 export async function GET() {
-  const { error } = await requireAuth(["directeur"]);
+  const { error } = await requireAuth(["directeur","directrice"]);
   if (error) return error;
 
   await connectDB();
@@ -14,7 +14,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAuth(["directeur"]);
+  const { error } = await requireAuth(["directeur","directrice"]);
   if (error) return error;
 
   await connectDB();

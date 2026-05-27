@@ -29,7 +29,7 @@ function extractMetaImage(html: string, baseUrl: string): string | null {
 }
 
 export async function GET(req: NextRequest) {
-  const { error } = await requireAuth(["directeur"]);
+  const { error } = await requireAuth(["directeur","directrice"]);
   if (error) return error;
 
   const sourceUrl = req.nextUrl.searchParams.get("url")?.trim();

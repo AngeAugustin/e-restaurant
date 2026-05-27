@@ -614,7 +614,7 @@ function ProductImportDialog({
         res.status === 401
           ? "Session expirée ou non connecté. Reconnectez-vous."
           : res.status === 403
-            ? "Accès refusé : seuls les directeurs peuvent importer."
+            ? "Accès refusé : seuls les membres de la direction peuvent importer."
             : "Vérifiez le fichier (.xlsx / .xls) et les colonnes requises.";
       toast({
         variant: "destructive",
@@ -998,6 +998,7 @@ function ProductImportDialog({
 export default function ProductsPage() {
   const { data: session } = useSession();
   const isDirector = session?.user?.role === "directeur";
+  const canManageProducts = ["directeur", "directrice"].includes(session?.user?.role ?? "");
   const qc = useQueryClient();
   const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100] as const;
 
@@ -1115,7 +1116,7 @@ export default function ProductsPage() {
         title="Produits"
         subtitle="Gérez votre catalogue de produits"
         action={
-          isDirector ? (
+          canManageProducts ? (
             <div className="flex items-center gap-2">
               <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
                 <Upload className="w-4 h-4" />
@@ -1303,7 +1304,7 @@ export default function ProductsPage() {
                     >
                       {product.stock} unités
                     </Badge>
-                    {isDirector && (
+                    {canManageProducts && (
                       <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
                           type="button"
@@ -1334,14 +1335,16 @@ export default function ProductsPage() {
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
-                          onClick={() => setProductToDelete(product)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        {isDirector && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => setProductToDelete(product)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>

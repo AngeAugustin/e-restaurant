@@ -129,14 +129,14 @@ export default function AnalyticsPage() {
     ],
     queryFn: () => fetchAnalytics(queryParams),
     enabled:
-      session?.user?.role === "directeur" &&
+      ["directeur", "directrice"].includes(session?.user?.role ?? "") &&
       (filter !== "custom" || Boolean(appliedCustom?.from && appliedCustom?.to)),
     staleTime: 60 * 1000,
   });
 
   if (status === "loading") return <Skeleton className="h-96" />;
-  if (session?.user?.role !== "directeur") {
-    return <p className="py-20 text-center text-muted-foreground">Accès réservé au Directeur</p>;
+  if (!["directeur", "directrice"].includes(session?.user?.role ?? "")) {
+    return <p className="py-20 text-center text-muted-foreground">Accès réservé à la direction</p>;
   }
 
   const summary = data?.summary;

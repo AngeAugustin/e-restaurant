@@ -162,8 +162,8 @@ export async function exportAnalyticsReportPdf(report: AnalyticsReportPayload): 
   const executiveSummary = buildExecutiveSummary(report, totalProfit, marginRate);
   const insights = buildInsights(report);
   const companyLogo = await loadImageAsDataUrl("/Logo.png");
-  const companyName = "ILOSIWAJU";
-  const companySubtitle = "BAR Restaurant";
+  const companyName = "Rehoboth Fleur de Dieu";
+  const companySubtitle = "Bar Restaurant";
   const generatedAt = new Date(report.generatedAt).toLocaleString("fr-FR");
   const dateRangeLabel = `Du ${report.period.startDate} au ${report.period.endDate}`;
 

@@ -243,7 +243,8 @@ export default function SettingsPage() {
     () => alertEmailFields.some((entry) => entry.value.trim() && !entry.isValidated),
     [alertEmailFields]
   );
-  const canManageAlerts = session?.user?.role === "directeur";
+  const isDirector = session?.user?.role === "directeur";
+  const canManageAlerts = ["directeur", "directrice"].includes(session?.user?.role ?? "");
   const canApplyColor = selectedColor !== appliedColor;
   const hasUnsavedColor = selectedColor !== savedColor;
   const canSaveSolutionName =
@@ -583,7 +584,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-destructive">Saisissez un entier entre 0 et 999.</p>
               )}
               {!canManageAlerts && (
-                <p className="text-sm text-[#B45309]">Seul un directeur peut modifier le seuil d&apos;alerte.</p>
+                <p className="text-sm text-[#B45309]">Seul un membre de la direction peut modifier le seuil d&apos;alerte.</p>
               )}
             </CardContent>
           </Card>
@@ -631,6 +632,7 @@ export default function SettingsPage() {
                       title="Supprimer"
                       aria-label={`Supprimer l'email ${index + 1}`}
                       disabled={!canManageAlerts}
+                      className={isDirector ? undefined : "hidden"}
                       onClick={() => deleteAlertEmailField(entry.id)}
                     >
                       <Trash2 className="w-4 h-4 text-red-500" />
@@ -645,7 +647,7 @@ export default function SettingsPage() {
 
               {!canManageAlerts && (
                 <p className="text-sm text-[#B45309]">
-                  Seul un utilisateur Directeur peut modifier la liste des destinataires.
+                  Seul un membre de la direction peut modifier la liste des destinataires.
                 </p>
               )}
 

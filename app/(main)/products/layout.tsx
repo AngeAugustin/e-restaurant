@@ -8,7 +8,7 @@ export default async function ProductsLayout({ children }: { children: React.Rea
     redirect("/login");
   }
 
-  if (session.user.role !== "directeur") {
+  if (!["directeur", "directrice"].includes(session.user.role)) {
     redirect("/dashboard");
   }
 

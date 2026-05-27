@@ -15,7 +15,7 @@ const extByMime: Record<string, string> = {
 };
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAuth(["directeur"]);
+  const { error } = await requireAuth(["directeur","directrice"]);
   if (error) return error;
 
   const formData = await req.formData();

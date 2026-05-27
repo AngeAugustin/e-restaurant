@@ -140,7 +140,7 @@ function buildBucketKeys(start: Date, end: Date, byMonth: boolean): string[] {
 }
 
 export async function GET(request: Request) {
-  const { error } = await requireAuth(["directeur"]);
+  const { error } = await requireAuth(["directeur","directrice"]);
   if (error) return error;
 
   await connectDB();

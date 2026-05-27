@@ -10,7 +10,7 @@ import Supply from "@/models/Supply";
 const MONTHS = 12;
 
 export async function GET(req: NextRequest) {
-  const { error } = await requireAuth(["directeur"]);
+  const { error } = await requireAuth(["directeur","directrice"]);
   if (error) return error;
 
   const productId = req.nextUrl.searchParams.get("productId");

@@ -19,15 +19,15 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Tableau", icon: LayoutDashboard, roles: ["directeur", "gerant"] },
-  { href: "/products", label: "Produits", icon: Package, roles: ["directeur"] },
+  { href: "/products", label: "Produits", icon: Package, roles: ["directeur", "directrice"] },
   { href: "/supplies", label: "Stock", icon: TruckIcon, roles: ["directeur", "gerant"] },
   { href: "/sales", label: "Ventes", icon: ShoppingCart, roles: ["directeur", "gerant"] },
   { href: "/cash", label: "Caisse", icon: Wallet, roles: ["directeur", "gerant"] },
-  { href: "/waitresses", label: "Serveuses", icon: UserRound, roles: ["directeur"] },
-  { href: "/tables", label: "Tables", icon: Table2, roles: ["directeur"] },
-  { href: "/analytics", label: "Stats", icon: BarChart3, roles: ["directeur"] },
-  { href: "/users", label: "Équipe", icon: Users, roles: ["directeur"] },
-  { href: "/settings", label: "Réglages", icon: Settings2, roles: ["directeur"] },
+  { href: "/waitresses", label: "Serveuses", icon: UserRound, roles: ["directeur", "directrice"] },
+  { href: "/tables", label: "Tables", icon: Table2, roles: ["directeur", "directrice"] },
+  { href: "/analytics", label: "Stats", icon: BarChart3, roles: ["directeur", "directrice"] },
+  { href: "/users", label: "Équipe", icon: Users, roles: ["directeur", "directrice"] },
+  { href: "/settings", label: "Réglages", icon: Settings2, roles: ["directeur", "directrice"] },
 ];
 
 export function MobileNav() {
