@@ -1,3 +1,5 @@
+import { isAllowedBrandingImageUrl } from "@/lib/media-urls";
+
 export const GLOBAL_SETTINGS_KEY = "global";
 
 /** Tag `next/cache` pour invalider le thème SSR quand la couleur primaire change. */
@@ -20,6 +22,7 @@ export const PRIMARY_COLOR_PALETTE = [
 ] as const;
 
 export const DEFAULT_PRIMARY_COLOR = PRIMARY_COLOR_PALETTE[0];
+
 export const DEFAULT_LOGO_URL = "/Logo.png";
 
 /** Nombre d’unités (inclus) en dessous duquel le stock est considéré comme bas (alerte email, indicateurs). */
@@ -59,7 +62,7 @@ export function normalizeHexColor(input: unknown): string | null {
 }
 
 export function isAllowedLogoUrl(url: string): boolean {
-  return url === DEFAULT_LOGO_URL || /^\/uploads\/branding\/[a-zA-Z0-9._-]+$/.test(url);
+  return url === DEFAULT_LOGO_URL || isAllowedBrandingImageUrl(url);
 }
 
 export function normalizeSolutionName(input: unknown): string {

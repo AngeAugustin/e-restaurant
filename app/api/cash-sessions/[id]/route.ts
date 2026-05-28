@@ -76,3 +76,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   await cashSession.save();
   return NextResponse.json(cashSession);
 }
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAuth(["directeur", "gerant"]);
+  if (error) return error;
+
+  await connectDB();
+  const { id } = await params;
+
+  const cashSession = await CashSession.findById(id);
+  if (!cashSession) {
+    return NextResponse.json({ error: "Session introuvable." }, { status: 404 });
+  }
+
+  await CashSession.findByIdAndDelete(id);
+  return NextResponse.json({ message: "Session supprimée." });
+}

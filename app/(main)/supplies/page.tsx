@@ -512,13 +512,9 @@ function SupplyDialog({
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Nombre de casiers</Label>
-                  {form.lotSizeMode === "custom" ? (
-                    <div className="flex min-h-10 w-full items-center rounded-md border border-input bg-muted/60 px-3 py-2 text-sm text-foreground shadow-sm">
-                      1
-                    </div>
-                  ) : (
+                {form.lotSizeMode !== "custom" ? (
+                  <div className="space-y-1.5">
+                    <Label>Nombre de casiers</Label>
                     <Input
                       type="number"
                       placeholder="4"
@@ -527,9 +523,9 @@ function SupplyDialog({
                       required
                       min={1}
                     />
-                  )}
-                </div>
-                <div className="space-y-1.5">
+                  </div>
+                ) : null}
+                <div className={`space-y-1.5${form.lotSizeMode === "custom" ? " col-span-2" : ""}`}>
                   <Label>Prix vente marché (FCFA)</Label>
                   <Input
                     type="number"
@@ -717,13 +713,9 @@ function SupplyDialog({
                             </div>
                           </div>
                           <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                              <Label>Nombre de casiers</Label>
-                              {line.lotSizeMode === "custom" ? (
-                                <div className="flex min-h-10 w-full items-center rounded-md border border-input bg-muted/60 px-3 py-2 text-sm text-foreground shadow-sm">
-                                  1
-                                </div>
-                              ) : (
+                            {line.lotSizeMode !== "custom" ? (
+                              <div className="space-y-1.5">
+                                <Label>Nombre de casiers</Label>
                                 <Input
                                   type="number"
                                   placeholder="4"
@@ -731,9 +723,9 @@ function SupplyDialog({
                                   onChange={(e) => updateLine(line.id, { numberOfLots: e.target.value })}
                                   min={1}
                                 />
-                              )}
-                            </div>
-                            <div className="space-y-1.5">
+                              </div>
+                            ) : null}
+                            <div className={`space-y-1.5${line.lotSizeMode === "custom" ? " col-span-2" : ""}`}>
                               <Label>Prix vente marché (FCFA)</Label>
                               <Input
                                 type="number"

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import path from "path";
-import { mkdir, writeFile } from "fs/promises";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import AppSetting from "@/models/AppSetting";
 import { GLOBAL_SETTINGS_KEY } from "@/lib/app-settings";
+import { uploadBrandingLogo } from "@/lib/media-storage.server";
 
 const MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -16,7 +15,7 @@ function extensionForMimeType(mimeType: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAuth(["directeur","directrice"]);
+  const { error } = await requireAuth(["directeur", "directrice"]);
   if (error) return error;
 
   await connectDB();
@@ -39,21 +38,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Le fichier dépasse 3MB." }, { status: 400 });
   }
 
-  const ext = extensionForMimeType(file.type);
-  const fileName = `logo-${Date.now()}.${ext}`;
-  const relativePath = `/uploads/branding/${fileName}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "branding");
-  const outputPath = path.join(uploadDir, fileName);
+  try {
+    const ext = extensionForMimeType(file.type);
+    const fileName = `logo-${Date.now()}.${ext}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const logoUrl = await uploadBrandingLogo(buffer, fileName, file.type);
 
-  await mkdir(uploadDir, { recursive: true });
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(outputPath, buffer);
+    await AppSetting.findOneAndUpdate(
+      { key: GLOBAL_SETTINGS_KEY },
+      { $set: { logoUrl }, $setOnInsert: { key: GLOBAL_SETTINGS_KEY } },
+      { upsert: true, strict: false }
+    );
 
-  await AppSetting.findOneAndUpdate(
-    { key: GLOBAL_SETTINGS_KEY },
-    { $set: { logoUrl: relativePath }, $setOnInsert: { key: GLOBAL_SETTINGS_KEY } },
-    { upsert: true, strict: false }
-  );
-
-  return NextResponse.json({ logoUrl: relativePath });
+    return NextResponse.json({ logoUrl });
+  } catch (err) {
+    console.error("[settings/logo]", err);
+    return NextResponse.json(
+      { error: "Impossible d’enregistrer le logo. Vérifiez la configuration du stockage." },
+      { status: 500 }
+    );
+  }
 }

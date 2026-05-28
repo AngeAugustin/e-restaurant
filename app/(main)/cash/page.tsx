@@ -14,6 +14,7 @@ import {
   CalendarClock,
   Receipt,
   Package,
+  Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PaginationControls } from "@/components/shared/PaginationControls";
@@ -68,6 +69,8 @@ function CashSessionCard({
   onEdit,
   onClose,
   onReopen,
+  onDelete,
+  canDelete,
 }: {
   session: CashSession;
   canReopen: boolean;
@@ -77,6 +80,8 @@ function CashSessionCard({
   onEdit: (session: CashSession) => void;
   onClose: (session: CashSession) => void;
   onReopen: (session: CashSession) => void;
+  onDelete: (session: CashSession) => void;
+  canDelete: boolean;
 }) {
   const isOpen = s.status === "OPEN";
   const summary = s.financialSummary;
@@ -234,6 +239,18 @@ function CashSessionCard({
             Relancer
           </Button>
         )}
+        {canDelete ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 border-destructive/30 bg-background/80 text-xs text-destructive shadow-sm hover:bg-destructive/5 hover:text-destructive"
+            onClick={() => onDelete(s)}
+          >
+            <Trash2 className="size-3.5" />
+            Supprimer
+          </Button>
+        ) : null}
       </CardFooter>
     </Card>
   );
@@ -255,6 +272,7 @@ export default function CashPage() {
   const [openEdit, setOpenEdit] = useState<CashSession | null>(null);
   const [pendingClose, setPendingClose] = useState<CashSession | null>(null);
   const [pendingReopen, setPendingReopen] = useState<CashSession | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<CashSession | null>(null);
   const [openingFloatRecoveredOnClose, setOpeningFloatRecoveredOnClose] = useState(true);
   const [openingFloatInput, setOpeningFloatInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -379,6 +397,21 @@ export default function CashPage() {
     reloadSessions();
   }
 
+  async function deleteSession(sessionId: string) {
+    setSaving(true);
+    const res = await fetch(`/api/cash-sessions/${sessionId}`, { method: "DELETE" });
+    setSaving(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast({ variant: "destructive", title: "Erreur", description: err.error ?? "Suppression impossible." });
+      return;
+    }
+    toast({ variant: "success", title: "Session supprimée" });
+    setPendingDelete(null);
+    reloadSessions();
+    qc.invalidateQueries({ queryKey: ["cash-sessions"] });
+  }
+
   async function exportSessionAnalytics(sessionId: string) {
     setExportingSessionId(sessionId);
     const res = await fetch(`/api/cash-sessions/${sessionId}/analytics`);
@@ -492,6 +525,8 @@ export default function CashPage() {
                   setOpeningFloatRecoveredOnClose(true);
                 }}
                 onReopen={(sess) => setPendingReopen(sess)}
+                onDelete={(sess) => setPendingDelete(sess)}
+                canDelete={session?.user?.role !== "directrice"}
               />
             ))}
           </div>
@@ -636,6 +671,30 @@ export default function CashPage() {
               disabled={saving || !pendingReopen || !!activeSession}
             >
               {saving ? "Relance..." : "Relancer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!pendingDelete} onOpenChange={(v) => !v && setPendingDelete(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Supprimer cette session ?</DialogTitle>
+            <DialogDescription>
+              Cette action est définitive. La session « {pendingDelete?.name} » sera retirée de la liste.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setPendingDelete(null)} disabled={saving}>
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => pendingDelete && deleteSession(pendingDelete._id)}
+              disabled={saving || !pendingDelete}
+            >
+              {saving ? "Suppression…" : "Supprimer"}
             </Button>
           </DialogFooter>
         </DialogContent>

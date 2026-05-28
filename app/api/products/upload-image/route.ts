@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "@/lib/auth-middleware";
+import { uploadProductImage } from "@/lib/media-storage.server";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -15,7 +14,7 @@ const extByMime: Record<string, string> = {
 };
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAuth(["directeur","directrice"]);
+  const { error } = await requireAuth(["directeur", "directrice"]);
   if (error) return error;
 
   const formData = await req.formData();
@@ -37,12 +36,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const buf = Buffer.from(await file.arrayBuffer());
-  const ext = extByMime[mime];
-  const name = `${randomUUID()}${ext}`;
-  const dir = path.join(process.cwd(), "public", "uploads", "products");
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, name), buf);
-
-  return NextResponse.json({ url: `/uploads/products/${name}` });
+  try {
+    const buf = Buffer.from(await file.arrayBuffer());
+    const ext = extByMime[mime];
+    const name = `${randomUUID()}${ext}`;
+    const url = await uploadProductImage(buf, name, mime);
+    return NextResponse.json({ url });
+  } catch (err) {
+    console.error("[upload-image]", err);
+    return NextResponse.json(
+      { error: "Impossible d’enregistrer l’image. Vérifiez la configuration du stockage." },
+      { status: 500 }
+    );
+  }
 }

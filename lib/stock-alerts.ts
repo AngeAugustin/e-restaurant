@@ -1,4 +1,3 @@
-import { readFile } from "fs/promises";
 import path from "path";
 import { Resend } from "resend";
 import User from "@/models/User";
@@ -6,6 +5,8 @@ import AppSetting from "@/models/AppSetting";
 import { connectDB } from "@/lib/db";
 import { toAbsoluteUrl } from "@/lib/public-app-url";
 import { saleTicketDisplayId } from "@/lib/sale-ticket-id";
+import { isAllowedProductImageUrl } from "@/lib/media-urls";
+import { readMediaBuffer } from "@/lib/media-storage.server";
 import {
   GLOBAL_SETTINGS_KEY,
   normalizeEmailList,
@@ -40,10 +41,6 @@ function escapeHtmlAttr(s: string) {
 /** Pour `url('…')` dans un attribut `style` (guillemets simples). */
 function cssSingleQuotedUrlFragment(s: string): string {
   return s.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-}
-
-function isSafeProductImagePath(url: string): boolean {
-  return /^\/uploads\/products\/[\w.-]+$/.test(url);
 }
 
 function formatFrenchDateTime(d: Date): string {
@@ -109,30 +106,6 @@ async function resolveLowStockMailBranding(): Promise<MailBranding | null> {
   };
 }
 
-async function readPublicStaticFile(publicPath: string): Promise<Buffer | null> {
-  if (!publicPath.startsWith("/")) return null;
-  const rel = publicPath.replace(/^\/+/, "");
-  if (!rel || rel.includes("..")) return null;
-  const pubRoot = path.resolve(process.cwd(), "public");
-  const full = path.resolve(pubRoot, rel);
-  const fromPub = path.relative(pubRoot, full);
-  if (fromPub.startsWith("..") || path.isAbsolute(fromPub)) return null;
-  try {
-    return await readFile(full);
-  } catch {
-    return null;
-  }
-}
-
-function mimeFromPublicPath(publicPath: string): string {
-  const ext = path.extname(publicPath).toLowerCase();
-  if (ext === ".png") return "image/png";
-  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
-  if (ext === ".webp") return "image/webp";
-  if (ext === ".gif") return "image/gif";
-  return "application/octet-stream";
-}
-
 export type LowStockSaleLineInput = {
   productName: string;
   productCategory?: string;
@@ -179,12 +152,12 @@ async function buildInlineImages(
   const attachments: AttachmentItem[] = [];
 
   let logoSrc = branding.logoAbsoluteFallback;
-  const logoBuf = await readPublicStaticFile(branding.logoPublicPath);
-  if (logoBuf) {
+  const logoMedia = await readMediaBuffer(branding.logoPublicPath);
+  if (logoMedia) {
     attachments.push({
       filename: path.basename(branding.logoPublicPath) || "logo.png",
-      content: logoBuf,
-      contentType: mimeFromPublicPath(branding.logoPublicPath),
+      content: logoMedia.buffer,
+      contentType: logoMedia.contentType,
       contentId: CID_LOGO,
     });
     logoSrc = `cid:${CID_LOGO}`;
@@ -198,13 +171,13 @@ async function buildInlineImages(
       lineImageSrcs.push("");
       continue;
     }
-    const prodBuf = await readPublicStaticFile(publicPath);
+    const prodMedia = await readMediaBuffer(publicPath);
     const cid = productCid(i);
-    if (prodBuf) {
+    if (prodMedia) {
       attachments.push({
-        filename: path.basename(publicPath) || "product.jpg",
-        content: prodBuf,
-        contentType: mimeFromPublicPath(publicPath),
+        filename: path.basename(publicPath.split("?")[0]) || "product.jpg",
+        content: prodMedia.buffer,
+        contentType: prodMedia.contentType,
         contentId: cid,
       });
       lineImageSrcs.push(`cid:${cid}`);
@@ -412,7 +385,7 @@ export async function notifyLowStockAfterCompletedSale(input: {
       productName: l.productName,
       productCategory: (l.productCategory ?? "").trim(),
       productImagePublicPath:
-        typeof l.productImage === "string" && isSafeProductImagePath(l.productImage)
+        typeof l.productImage === "string" && isAllowedProductImageUrl(l.productImage)
           ? l.productImage
           : "",
       stockBeforeSale: l.stockBeforeSale,
