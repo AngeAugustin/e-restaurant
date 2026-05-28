@@ -14,6 +14,7 @@ import {
   Table2,
   BarChart3,
   Settings2,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/analytics", label: "Stats", icon: BarChart3, roles: ["directeur", "directrice"] },
   { href: "/users", label: "Équipe", icon: Users, roles: ["directeur", "directrice"] },
   { href: "/settings", label: "Réglages", icon: Settings2, roles: ["directeur", "directrice"] },
+  { href: "/guide", label: "Guide", icon: BookOpen, roles: ["directeur", "directrice", "gerant"] },
 ];
 
 export function MobileNav() {

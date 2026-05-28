@@ -19,6 +19,7 @@ import {
   BarChart3,
   LogOut,
   Settings2,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -46,6 +47,7 @@ const navItems = [
   { href: "/analytics", label: "Analytiques", icon: BarChart3, roles: ["directeur", "directrice"] },
   { href: "/users", label: "Utilisateurs", icon: Users, roles: ["directeur", "directrice"] },
   { href: "/settings", label: "Paramètres", icon: Settings2, roles: ["directeur", "directrice"] },
+  { href: "/guide", label: "Guide", icon: BookOpen, roles: ["directeur", "directrice", "gerant"] },
 ];
 
 export function Sidebar() {
