@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { premiumTableSelectClass } from "@/components/shared/PremiumTableShell";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { resolveProductImageDisplayUrl } from "@/lib/media-urls";
 import type { ISale } from "@/types";
 import { formatSaleTablesLine } from "@/lib/sale-tables";
 
@@ -133,7 +134,7 @@ export default function ProductDetailPage() {
               <div className="mx-auto flex h-36 w-36 shrink-0 overflow-hidden rounded-2xl bg-[#F5F5F5] sm:h-40 sm:w-40 md:mx-0 md:h-44 md:w-44">
                 {product.image ? (
                   <img
-                    src={product.image}
+                    src={resolveProductImageDisplayUrl(product.image)}
                     alt={product.name}
                     className="h-full w-full object-cover"
                     onError={(e) => {

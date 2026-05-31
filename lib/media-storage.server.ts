@@ -4,8 +4,8 @@ import { readFile, writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { put } from "@vercel/blob";
 import { BLOB_STORAGE_URL } from "@/lib/media-urls";
+import { readProductImageFromUrl, saveProductImage } from "@/lib/product-image.server";
 
-const LOCAL_PRODUCT_DIR = path.join(process.cwd(), "public", "uploads", "products");
 const LOCAL_BRANDING_DIR = path.join(process.cwd(), "public", "uploads", "branding");
 
 function hasBlobToken(): boolean {
@@ -28,16 +28,7 @@ export async function uploadProductImage(
   fileName: string,
   contentType: string
 ): Promise<string> {
-  if (hasBlobToken()) {
-    const blob = await put(`products/${fileName}`, buffer, {
-      access: "public",
-      contentType,
-      addRandomSuffix: false,
-    });
-    return blob.url;
-  }
-
-  return uploadToLocal(LOCAL_PRODUCT_DIR, fileName, buffer, "/uploads/products");
+  return saveProductImage(buffer, fileName, contentType);
 }
 
 export async function uploadBrandingLogo(
@@ -102,6 +93,9 @@ export async function readMediaBuffer(
       return null;
     }
   }
+
+  const mongoMedia = await readProductImageFromUrl(value);
+  if (mongoMedia) return mongoMedia;
 
   const buffer = await readLocalPublicFile(value);
   if (!buffer) return null;

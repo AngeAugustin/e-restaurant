@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/utils";
+import { resolveProductImageDisplayUrl } from "@/lib/media-urls";
 import { exportAnalyticsReportPdf, type AnalyticsReportPayload } from "@/lib/analytics-report-pdf";
 import type { AnalyticsData } from "@/types";
 
@@ -57,7 +58,7 @@ function formatPercentage(value: number): string {
 
 function ProductRowAvatar({ image }: { image?: string }) {
   const [failed, setFailed] = useState(false);
-  const src = image?.trim() ?? "";
+  const src = resolveProductImageDisplayUrl(image) ?? "";
   const showImg = Boolean(src) && !failed;
 
   return (

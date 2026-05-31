@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { resolveProductImageDisplayUrl } from "@/lib/media-urls";
 import {
   SUPPLY_LOT_SIZES,
   SUPPLY_LOT_SIZE_SELECT_OTHER,
@@ -243,17 +244,19 @@ function SupplyLineProductImage({ imageUrl, label }: { imageUrl?: string; label:
     setBroken(false);
   }, [imageUrl]);
 
+  const resolvedUrl = resolveProductImageDisplayUrl(imageUrl);
+
   return (
     <div className="relative min-h-[7.5rem] flex-1 overflow-hidden rounded-xl border border-[#E5E5E5] bg-[#F3F4F6]">
-      {imageUrl && !broken ? (
+      {resolvedUrl && !broken ? (
         <img
-          src={imageUrl}
+          src={resolvedUrl}
           alt={label}
           className="absolute inset-0 h-full w-full object-cover"
           onError={onError}
         />
       ) : null}
-      {(!imageUrl || broken) && (
+      {(!resolvedUrl || broken) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-2 text-center">
           <Package className="h-8 w-8 text-[#D1D5DB]" aria-hidden />
           <span className="text-[10px] font-medium text-[#9CA3AF]">Sans image</span>

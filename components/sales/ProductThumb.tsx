@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Image as ImageIcon } from "lucide-react";
+import { resolveProductImageDisplayUrl } from "@/lib/media-urls";
 import { cn } from "@/lib/utils";
 
 export function ProductThumb({
@@ -16,7 +17,8 @@ export function ProductThumb({
   variant?: "light" | "dark";
 }) {
   const [broken, setBroken] = useState(false);
-  const showImg = Boolean(imageUrl) && !broken;
+  const displayUrl = resolveProductImageDisplayUrl(imageUrl);
+  const showImg = Boolean(displayUrl) && !broken;
 
   return (
     <div
@@ -28,7 +30,7 @@ export function ProductThumb({
     >
       {showImg ? (
         <img
-          src={imageUrl!}
+          src={displayUrl!}
           alt={name}
           className="h-full w-full object-cover"
           onError={() => setBroken(true)}

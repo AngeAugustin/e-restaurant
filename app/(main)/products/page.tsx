@@ -53,6 +53,7 @@ import { parsePositiveMarketPrice } from "@/lib/product-market-price";
 import { parseQuantiteStandardPack, parsePrixCasier } from "@/lib/product-pack-fields";
 import type { ProductCatalogExportRow } from "@/lib/product-catalog-export";
 import { ProductCatalogExportDialog } from "@/components/products/ProductCatalogExportDialog";
+import { resolveProductImageDisplayUrl } from "@/lib/media-urls";
 
 interface ProductWithStock {
   _id: string;
@@ -370,7 +371,7 @@ function ProductFormDialog({
     onClose();
   };
 
-  const displaySrc = previewUrl ?? (form.image ? form.image : null);
+  const displaySrc = previewUrl ?? resolveProductImageDisplayUrl(form.image) ?? null;
   const selectedCategoryValue = categoryOptions.includes(form.category) ? form.category : NEW_CATEGORY_VALUE;
 
   return (
@@ -1246,7 +1247,7 @@ export default function ProductsPage() {
                   <div className="aspect-square bg-[#F5F5F5] flex items-center justify-center relative overflow-hidden">
                     {product.image ? (
                       <img
-                        src={product.image}
+                        src={resolveProductImageDisplayUrl(product.image)}
                         alt={product.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => {

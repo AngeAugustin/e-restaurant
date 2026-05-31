@@ -16,6 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { TopProductsDonut } from "@/components/shared/TopProductsDonut";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { resolveProductImageDisplayUrl } from "@/lib/media-urls";
 import type { DashboardStats, ISale } from "@/types";
 import { formatSaleTablesLine } from "@/lib/sale-tables";
 import { AlertTriangle, CheckCircle, Clock, Image as ImageIcon, XCircle } from "lucide-react";
@@ -249,7 +250,7 @@ export default function DashboardCharts({ data }: { data: DashboardStats }) {
                       <div className="flex min-w-0 items-center gap-2.5">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F5F5F5]">
                           {product.image ? (
-                            <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+                            <img src={resolveProductImageDisplayUrl(product.image)} alt={product.name} className="h-full w-full object-cover" />
                           ) : (
                             <ImageIcon className="h-4 w-4 text-[#9CA3AF]" />
                           )}
