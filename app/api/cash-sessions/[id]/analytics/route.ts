@@ -10,7 +10,7 @@ import Supply from "@/models/Supply";
 import Waitress from "@/models/Waitress";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = await requireAuth(["directeur", "gerant"]);
+  const { error } = await requireAuth(["directeur", "directrice"]);
   if (error) return error;
 
   await connectDB();

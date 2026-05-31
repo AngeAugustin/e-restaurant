@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -42,6 +43,7 @@ async function fetchSale(id: string): Promise<ISale> {
 
 export default function SaleDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { data: session } = useSession();
   const qc = useQueryClient();
   const [saleForClose, setSaleForClose] = useState<ISale | null>(null);
   const [saleToCancel, setSaleToCancel] = useState<ISale | null>(null);
@@ -105,6 +107,7 @@ export default function SaleDetailPage() {
   const tablesHeading =
     Array.isArray(sale.tables) && sale.tables.length > 1 ? "Tables" : "Table";
   const createdBy = sale.createdBy as { firstName?: string; lastName?: string };
+  const canCancelSale = session?.user?.role !== "gerant";
 
   const totalMargin = sale.items.reduce((sum, item) => {
     if (item.unitCost == null) return sum;
@@ -155,13 +158,15 @@ export default function SaleDetailPage() {
                     <Link href={`/sales/${id}/edit`}>Modifier</Link>
                   </Button>
                   <Button onClick={() => setSaleForClose(sale)}>Clôturer la vente</Button>
-                  <Button
-                    variant="outline"
-                    className="border-[#F2D7D7] text-red-600 hover:bg-red-50 hover:text-red-700"
-                    onClick={() => setSaleToCancel(sale)}
-                  >
-                    Annuler
-                  </Button>
+                  {canCancelSale ? (
+                    <Button
+                      variant="outline"
+                      className="border-[#F2D7D7] text-red-600 hover:bg-red-50 hover:text-red-700"
+                      onClick={() => setSaleToCancel(sale)}
+                    >
+                      Annuler
+                    </Button>
+                  ) : null}
                 </div>
               )}
             </div>

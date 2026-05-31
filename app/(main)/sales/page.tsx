@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, ShoppingCart, TrendingUp, Clock, CheckCircle2, Eye, Pencil } from "lucide-react";
@@ -35,6 +36,7 @@ async function fetchSalesPage(page: number, pageSize: number): Promise<SalesList
 // ----------- Main Page -----------
 export default function SalesPage() {
   const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100] as const;
+  const { data: session } = useSession();
   const qc = useQueryClient();
   const [saleToClose, setSaleToClose] = useState<ISale | null>(null);
   const [saleToCancel, setSaleToCancel] = useState<ISale | null>(null);
@@ -75,6 +77,7 @@ export default function SalesPage() {
   const totalCount = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const listLoading = isLoading && !data;
+  const canCancelSale = session?.user?.role !== "gerant";
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
@@ -235,14 +238,16 @@ export default function SalesPage() {
                                 <Button size="sm" className="rounded-xl shadow-sm" onClick={() => setSaleToClose(sale)}>
                                   Clôturer
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm backdrop-blur-sm hover:border-rose-300 hover:bg-rose-500/12"
-                                  onClick={() => setSaleToCancel(sale)}
-                                >
-                                  Annuler
-                                </Button>
+                                {canCancelSale ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm backdrop-blur-sm hover:border-rose-300 hover:bg-rose-500/12"
+                                    onClick={() => setSaleToCancel(sale)}
+                                  >
+                                    Annuler
+                                  </Button>
+                                ) : null}
                               </>
                             )}
                             {sale.status === "COMPLETED" && sale.change !== undefined && (

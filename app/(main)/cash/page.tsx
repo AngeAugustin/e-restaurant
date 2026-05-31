@@ -71,6 +71,7 @@ function CashSessionCard({
   onReopen,
   onDelete,
   canDelete,
+  canExport,
 }: {
   session: CashSession;
   canReopen: boolean;
@@ -82,6 +83,7 @@ function CashSessionCard({
   onReopen: (session: CashSession) => void;
   onDelete: (session: CashSession) => void;
   canDelete: boolean;
+  canExport: boolean;
 }) {
   const isOpen = s.status === "OPEN";
   const summary = s.financialSummary;
@@ -181,21 +183,23 @@ function CashSessionCard({
       </CardContent>
 
       <CardFooter className="flex flex-wrap gap-2 border-t border-border/60 bg-muted/20 p-3">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-8 border-border/80 bg-background/80 text-xs shadow-sm hover:bg-background"
-          onClick={() => onExport(s._id)}
-          disabled={exportingSessionId === s._id}
-        >
-          {exportingSessionId === s._id ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <FileDown className="size-3.5" />
-          )}
-          Exporter
-        </Button>
+        {canExport ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 border-border/80 bg-background/80 text-xs shadow-sm hover:bg-background"
+            onClick={() => onExport(s._id)}
+            disabled={exportingSessionId === s._id}
+          >
+            {exportingSessionId === s._id ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <FileDown className="size-3.5" />
+            )}
+            Exporter
+          </Button>
+        ) : null}
         {isOpen ? (
           <>
             <Button
@@ -441,6 +445,10 @@ export default function CashPage() {
     return <p className="py-20 text-center text-[#9CA3AF]">Accès réservé aux directeurs, aux directrices et gérants.</p>;
   }
 
+  const userRole = session?.user?.role ?? "";
+  const canManageCashSessions = userRole === "directeur";
+  const canExportCashSessions = userRole !== "gerant";
+
   return (
     <div>
       <PageHeader
@@ -526,7 +534,8 @@ export default function CashPage() {
                 }}
                 onReopen={(sess) => setPendingReopen(sess)}
                 onDelete={(sess) => setPendingDelete(sess)}
-                canDelete={session?.user?.role !== "directrice"}
+                canDelete={canManageCashSessions}
+                canExport={canExportCashSessions}
               />
             ))}
           </div>
