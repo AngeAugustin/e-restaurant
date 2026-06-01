@@ -203,13 +203,16 @@ export default function SaleWizard({
   const updateQty = (productId: string, delta: number) => {
     if (wizardInteractionsLocked) return;
     setCart((prev) =>
-      prev
-        .map((i) => {
-          if (i.productId !== productId) return i;
-          const newQty = Math.min(Math.max(1, i.quantity + delta), i.maxStock);
-          return { ...i, quantity: newQty };
-        })
-        .filter((i) => !(i.productId === productId && delta === -1 && i.quantity === 1))
+      prev.reduce<typeof prev>((acc, i) => {
+        if (i.productId !== productId) {
+          acc.push(i);
+          return acc;
+        }
+        const newQty = i.quantity + delta;
+        if (newQty < 1) return acc;
+        acc.push({ ...i, quantity: Math.min(newQty, i.maxStock) });
+        return acc;
+      }, [])
     );
   };
 
