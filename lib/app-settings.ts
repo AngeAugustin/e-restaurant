@@ -88,6 +88,18 @@ export function normalizeEmailList(input: unknown): string[] {
   return Array.from(unique);
 }
 
+export function normalizeDiplomaList(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  const unique = new Set<string>();
+  for (const value of input) {
+    if (typeof value !== "string") continue;
+    const name = value.trim().replace(/\s+/g, " ");
+    if (!name) continue;
+    unique.add(name.slice(0, 80));
+  }
+  return Array.from(unique);
+}
+
 export function hexToHslTriplet(hexColor: string): string | null {
   const clean = hexColor.replace("#", "").trim();
   if (!/^[0-9a-fA-F]{6}$/.test(clean)) return null;

@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import CashSession from "@/models/CashSession";
+import { barCashSessionFilter } from "@/lib/cash-session";
+
+type LeanBarSession = {
+  _id: Types.ObjectId;
+  status: "OPEN" | "CLOSED";
+  kind?: string | null;
+  openingFloat: number;
+  openingFloatRecovered?: boolean;
+  closedAt?: Date;
+};
+
+async function loadBarSession(id: string) {
+  const cashSession = await CashSession.findById(id).lean<LeanBarSession | null>();
+  if (!cashSession || cashSession.kind === "KITCHEN") return null;
+  return cashSession;
+}
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAuth(["directeur", "gerant"]);
@@ -12,7 +29,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json();
   const action = String(body?.action ?? "update");
 
-  const cashSession = await CashSession.findById(id);
+  const cashSession = await loadBarSession(id);
   if (!cashSession) {
     return NextResponse.json({ error: "Session introuvable." }, { status: 404 });
   }
@@ -22,11 +39,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Cette session est déjà clôturée." }, { status: 400 });
     }
     const openingFloatRecovered = body?.openingFloatRecovered === true;
-    cashSession.status = "CLOSED";
-    cashSession.closedAt = new Date();
-    cashSession.openingFloatRecovered = openingFloatRecovered;
-    await cashSession.save();
-    return NextResponse.json(cashSession);
+    const closedAt = new Date();
+    await CashSession.updateOne(
+      { _id: id, ...barCashSessionFilter() },
+      { $set: { status: "CLOSED", closedAt, openingFloatRecovered } }
+    );
+    return NextResponse.json({ ...cashSession, status: "CLOSED", closedAt, openingFloatRecovered });
   }
 
   if (action === "reopen") {
@@ -34,7 +52,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Cette session est déjà ouverte." }, { status: 400 });
     }
 
-    const newest = await CashSession.findOne()
+    const newest = await CashSession.findOne(barCashSessionFilter())
       .sort({ createdAt: -1, _id: -1 })
       .select("_id")
       .lean();
@@ -48,7 +66,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
 
-    const active = await CashSession.findOne({ status: "OPEN", _id: { $ne: id } }).select("_id").lean();
+    const active = await CashSession.findOne({
+      ...barCashSessionFilter(),
+      status: "OPEN",
+      _id: { $ne: id },
+    })
+      .select("_id")
+      .lean();
     if (active) {
       return NextResponse.json(
         { error: "Une autre session est déjà ouverte. Clôturez-la avant de relancer celle-ci." },
@@ -56,11 +80,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
 
-    cashSession.status = "OPEN";
-    cashSession.closedAt = undefined;
-    cashSession.openingFloatRecovered = undefined;
-    await cashSession.save();
-    return NextResponse.json(cashSession);
+    await CashSession.updateOne(
+      { _id: id, ...barCashSessionFilter() },
+      { $set: { status: "OPEN" }, $unset: { closedAt: 1, openingFloatRecovered: 1 } }
+    );
+    return NextResponse.json({
+      ...cashSession,
+      status: "OPEN",
+      closedAt: undefined,
+      openingFloatRecovered: undefined,
+    });
   }
 
   if (cashSession.status === "CLOSED") {
@@ -72,9 +101,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Fond de caisse invalide." }, { status: 400 });
   }
 
-  cashSession.openingFloat = openingFloat;
-  await cashSession.save();
-  return NextResponse.json(cashSession);
+  await CashSession.updateOne(
+    { _id: id, ...barCashSessionFilter() },
+    { $set: { openingFloat } }
+  );
+  return NextResponse.json({ ...cashSession, openingFloat });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -84,11 +115,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   await connectDB();
   const { id } = await params;
 
-  const cashSession = await CashSession.findById(id);
+  const cashSession = await loadBarSession(id);
   if (!cashSession) {
     return NextResponse.json({ error: "Session introuvable." }, { status: 404 });
   }
 
-  await CashSession.findByIdAndDelete(id);
+  await CashSession.deleteOne({ _id: id, ...barCashSessionFilter() });
   return NextResponse.json({ message: "Session supprimée." });
 }

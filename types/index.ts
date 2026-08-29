@@ -99,6 +99,8 @@ export interface IWaitress {
   firstName: string;
   lastName: string;
   phone?: string;
+  paymentMode?: "CASH" | "MOBILE_MONEY";
+  jobTitle?: IJobTitle | string;
   createdAt: string;
   updatedAt: string;
 }
@@ -115,6 +117,7 @@ export interface IRestaurantTable {
 }
 
 export type CashSessionStatus = "OPEN" | "CLOSED";
+export type CashSessionKind = "BAR" | "KITCHEN";
 
 export interface ICashSession {
   _id: string;
@@ -123,6 +126,7 @@ export interface ICashSession {
   openingFloat: number;
   /** Renseigné à la clôture : fond de caisse repris ou non */
   openingFloatRecovered?: boolean;
+  kind?: CashSessionKind;
   status: CashSessionStatus;
   closedAt?: string;
   createdAt: string;
@@ -138,6 +142,183 @@ export interface DashboardStats {
   topProducts: { name: string; sold: number; revenue: number }[];
   lowStockProducts: { id: string; name: string; image?: string; stock: number; marketSellingPrice: number }[];
   recentSales: ISale[];
+}
+
+export type StaffPaymentMode = "CASH" | "MOBILE_MONEY";
+
+export interface IMenu {
+  _id: string;
+  name: string;
+  image: string;
+  price: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ICook {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  diploma?: string;
+  photo?: string;
+  paymentMode: StaffPaymentMode;
+  jobTitle?: IJobTitle | string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IKitchenPlate {
+  _id: string;
+  number: string;
+  createdAt: string;
+  updatedAt: string;
+  occupiedByPendingOrderId?: string | null;
+}
+
+export interface IKitchenOrderItem {
+  menu: IMenu | string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export type KitchenOrderStatus = SaleStatus;
+export type KitchenOrderPaymentMethod = SalePaymentMethod;
+
+export interface IKitchenOrder {
+  _id: string;
+  cook: ICook | string;
+  plate: IKitchenPlate | string;
+  items: IKitchenOrderItem[];
+  totalAmount: number;
+  amountPaid?: number;
+  change?: number;
+  changeReturnedAck?: boolean;
+  paymentMethod?: KitchenOrderPaymentMethod;
+  status: KitchenOrderStatus;
+  createdBy: IUser | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KitchenOrdersListStats {
+  totalRevenue: number;
+  totalOrders: number;
+  pendingOrders: number;
+  completedOrders: number;
+}
+
+export interface KitchenOrdersListResponse {
+  items: IKitchenOrder[];
+  total: number;
+  stats: KitchenOrdersListStats;
+}
+
+export type PayrollBeneficiaryType = "WAITRESS" | "COOK" | "MANAGER";
+
+export interface IJobTitle {
+  _id: string;
+  beneficiaryType: PayrollBeneficiaryType;
+  name: string;
+  salary: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IPayroll {
+  _id: string;
+  beneficiaryType: PayrollBeneficiaryType;
+  waitress?: IWaitress | string;
+  cook?: ICook | string;
+  user?: IUser | string;
+  jobTitle?: IJobTitle | string;
+  periodStart: string;
+  periodEnd: string;
+  baseSalary?: number;
+  bonuses?: { name: string; amount: number }[];
+  bonusName?: string;
+  bonusAmount?: number;
+  amount: number;
+  paidAt: string;
+  comment?: string;
+  attachmentUrl?: string;
+  createdBy: IUser | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IExpenseCategory {
+  _id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IExpensePaymentMethod {
+  _id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IExpense {
+  _id: string;
+  label: string;
+  category: IExpenseCategory | string;
+  amount: number;
+  date: string;
+  paymentMethod: IExpensePaymentMethod | string;
+  comment?: string;
+  attachmentUrl?: string;
+  createdBy: IUser | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IAccountingPeriod {
+  _id: string;
+  openingBalance: number;
+  openedAt: string;
+  note?: string;
+  createdBy: IUser | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AccountingMovementKind = "SUPPLY" | "EXPENSE";
+
+export type AccountingFilter = "range" | "month" | "year";
+
+export interface IAccountingMovement {
+  kind: AccountingMovementKind;
+  id: string;
+  date: string;
+  label: string;
+  amount: number;
+}
+
+export interface IAccountingSnapshot {
+  filter: AccountingFilter;
+  from: string;
+  to: string;
+  label: string;
+  generatedAt: string;
+  period: {
+    _id: string;
+    openingBalance: number;
+    openedAt: string;
+    note?: string;
+  } | null;
+  active: boolean;
+  openingBalance: number;
+  startBalance: number;
+  suppliesTotal: number;
+  expensesTotal: number;
+  remaining: number;
+  movements: IAccountingMovement[];
 }
 
 export interface AnalyticsData {

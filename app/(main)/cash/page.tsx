@@ -15,6 +15,7 @@ import {
   Receipt,
   Package,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PaginationControls } from "@/components/shared/PaginationControls";
@@ -51,6 +52,8 @@ type CashSession = {
   financialSummary?: {
     totalSales: number;
     totalSupplies: number;
+    completedCount?: number;
+    pendingCount?: number;
   };
 };
 
@@ -686,13 +689,43 @@ export default function CashPage() {
       </Dialog>
 
       <Dialog open={!!pendingDelete} onOpenChange={(v) => !v && setPendingDelete(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Supprimer cette session ?</DialogTitle>
             <DialogDescription>
               Cette action est définitive. La session « {pendingDelete?.name} » sera retirée de la liste.
             </DialogDescription>
           </DialogHeader>
+          {(pendingDelete?.financialSummary?.completedCount ?? 0) > 0 ||
+          (pendingDelete?.financialSummary?.pendingCount ?? 0) > 0 ? (
+            <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-700" aria-hidden />
+              <div className="space-y-1.5">
+                <p className="font-semibold">Des ventes sont liées à cette session</p>
+                <ul className="list-disc space-y-0.5 pl-4 text-[13px] leading-relaxed">
+                  {(pendingDelete?.financialSummary?.completedCount ?? 0) > 0 ? (
+                    <li>
+                      {(pendingDelete?.financialSummary?.completedCount ?? 0) > 1
+                        ? `${pendingDelete?.financialSummary?.completedCount} ventes clôturées`
+                        : "1 vente clôturée"}{" "}
+                      ({formatCurrency(pendingDelete?.financialSummary?.totalSales ?? 0)})
+                    </li>
+                  ) : null}
+                  {(pendingDelete?.financialSummary?.pendingCount ?? 0) > 0 ? (
+                    <li>
+                      {(pendingDelete?.financialSummary?.pendingCount ?? 0) > 1
+                        ? `${pendingDelete?.financialSummary?.pendingCount} ventes encore en attente`
+                        : "1 vente encore en attente"}
+                    </li>
+                  ) : null}
+                </ul>
+                <p className="text-[13px] leading-relaxed text-amber-900/90">
+                  Les ventes ne seront pas supprimées : elles resteront dans Ventes. En revanche, elles ne seront plus
+                  rattachées à une caisse et leurs montants ne seront plus comptés ici.
+                </p>
+              </div>
+            </div>
+          ) : null}
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => setPendingDelete(null)} disabled={saving}>
               Annuler
@@ -703,7 +736,12 @@ export default function CashPage() {
               onClick={() => pendingDelete && deleteSession(pendingDelete._id)}
               disabled={saving || !pendingDelete}
             >
-              {saving ? "Suppression…" : "Supprimer"}
+              {saving
+                ? "Suppression…"
+                : (pendingDelete?.financialSummary?.completedCount ?? 0) > 0 ||
+                    (pendingDelete?.financialSummary?.pendingCount ?? 0) > 0
+                  ? "Supprimer quand même"
+                  : "Supprimer"}
             </Button>
           </DialogFooter>
         </DialogContent>

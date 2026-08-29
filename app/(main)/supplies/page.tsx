@@ -375,6 +375,7 @@ function SupplyDialog({
     qc.invalidateQueries({ queryKey: ["products-list"] });
     qc.invalidateQueries({ queryKey: ["products-stock"] });
     qc.invalidateQueries({ queryKey: ["product"] });
+    qc.invalidateQueries({ queryKey: ["accounting-snapshot"] });
     onClose();
     setForm(emptyForm());
     setLines([newDraftLine()]);
@@ -822,6 +823,7 @@ export default function SuppliesPage() {
       qc.invalidateQueries({ queryKey: ["supplies"] });
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["products-list"] });
+      qc.invalidateQueries({ queryKey: ["accounting-snapshot"] });
       setSupplyToDelete(null);
     },
     onError: (err: Error) => {

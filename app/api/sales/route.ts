@@ -5,6 +5,7 @@ import Sale from "@/models/Sale";
 import Supply from "@/models/Supply";
 import Product from "@/models/Product";
 import CashSession from "@/models/CashSession";
+import { barCashSessionFilter } from "@/lib/cash-session";
 import { resolveSaleLinePricing } from "@/lib/sale-pricing";
 import {
   parseTableIdsFromRequestBody,
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
   const { waitressId, items } = body;
   const tableIds = parseTableIdsFromRequestBody(body);
 
-  const latestCashSession = await CashSession.findOne().sort({ createdAt: -1 }).select("status").lean<{
+  const latestCashSession = await CashSession.findOne(barCashSessionFilter()).sort({ createdAt: -1 }).select("status").lean<{
     status: "OPEN" | "CLOSED";
   } | null>();
   if (!latestCashSession || latestCashSession.status !== "OPEN") {

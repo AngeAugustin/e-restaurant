@@ -15,6 +15,7 @@ import {
   normalizeLowStockAlertThreshold,
   normalizeSolutionName,
   normalizeEmailList,
+  normalizeDiplomaList,
 } from "@/lib/app-settings";
 
 function toClientPayload(doc: {
@@ -23,6 +24,7 @@ function toClientPayload(doc: {
   solutionName?: string;
   lowStockAlertEmails?: unknown;
   lowStockAlertThreshold?: unknown;
+  cookDiplomas?: unknown;
 }) {
   const safeLogoUrl =
     typeof doc.logoUrl === "string" && isAllowedLogoUrl(doc.logoUrl) ? doc.logoUrl : DEFAULT_LOGO_URL;
@@ -37,11 +39,12 @@ function toClientPayload(doc: {
     solutionName: safeSolutionName,
     lowStockAlertEmails: normalizeEmailList(doc.lowStockAlertEmails),
     lowStockAlertThreshold: normalizeLowStockAlertThreshold(doc.lowStockAlertThreshold),
+    cookDiplomas: normalizeDiplomaList(doc.cookDiplomas),
   };
 }
 
 export async function GET() {
-  const { error } = await requireAuth(["directeur", "gerant"]);
+  const { error } = await requireAuth(["directeur", "directrice", "gerant"]);
   if (error) return error;
 
   await connectDB();
@@ -50,7 +53,7 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  const { session, error } = await requireAuth(["directeur", "gerant"]);
+  const { session, error } = await requireAuth(["directeur", "directrice", "gerant"]);
   if (error) return error;
 
   await connectDB();
@@ -59,6 +62,7 @@ export async function PUT(req: NextRequest) {
     solutionName?: unknown;
     lowStockAlertEmails?: unknown;
     lowStockAlertThreshold?: unknown;
+    cookDiplomas?: unknown;
   };
   const updates: Record<string, string | string[] | number> = {};
 
@@ -122,6 +126,16 @@ export async function PUT(req: NextRequest) {
       );
     }
     updates.solutionName = normalizeSolutionName(body.solutionName);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "cookDiplomas")) {
+    if (!["directeur", "directrice"].includes(session?.user?.role ?? "")) {
+      return NextResponse.json(
+        { error: "Seules les directrices et les directeurs peuvent modifier les diplômes" },
+        { status: 403 }
+      );
+    }
+    updates.cookDiplomas = normalizeDiplomaList(body.cookDiplomas);
   }
 
   if (Object.keys(updates).length === 0) {

@@ -45,6 +45,7 @@ function WaitressDialog({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [paymentMode, setPaymentMode] = useState<"CASH" | "MOBILE_MONEY">("CASH");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -52,10 +53,12 @@ function WaitressDialog({
       setFirstName(waitress.firstName);
       setLastName(waitress.lastName);
       setPhone(waitress.phone ?? "");
+      setPaymentMode(waitress.paymentMode ?? "CASH");
     } else {
       setFirstName("");
       setLastName("");
       setPhone("");
+      setPaymentMode("CASH");
     }
   }, [waitress, open]);
 
@@ -67,7 +70,7 @@ function WaitressDialog({
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firstName, lastName, phone: phone.trim() || undefined }),
+      body: JSON.stringify({ firstName, lastName, phone: phone.trim() || undefined, paymentMode }),
     });
     setIsSubmitting(false);
     if (!res.ok) {
@@ -108,6 +111,18 @@ function WaitressDialog({
               placeholder="Ex. 07 01 23 45 67"
               type="tel"
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Mode de paiement</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={paymentMode}
+              onChange={(e) => setPaymentMode(e.target.value as "CASH" | "MOBILE_MONEY")}
+              required
+            >
+              <option value="CASH">Espèces</option>
+              <option value="MOBILE_MONEY">Mobile Money</option>
+            </select>
           </div>
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={onClose}>

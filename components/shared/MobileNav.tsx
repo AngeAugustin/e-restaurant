@@ -3,41 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import {
-  LayoutDashboard,
-  Package,
-  TruckIcon,
-  ShoppingCart,
-  Wallet,
-  Users,
-  UserRound,
-  Table2,
-  BarChart3,
-  Settings2,
-  BookOpen,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/dashboard", label: "Tableau", icon: LayoutDashboard, roles: ["directeur", "gerant"] },
-  { href: "/products", label: "Produits", icon: Package, roles: ["directeur", "directrice"] },
-  { href: "/supplies", label: "Stock", icon: TruckIcon, roles: ["directeur", "gerant"] },
-  { href: "/sales", label: "Ventes", icon: ShoppingCart, roles: ["directeur", "gerant"] },
-  { href: "/cash", label: "Caisse", icon: Wallet, roles: ["directeur", "gerant"] },
-  { href: "/waitresses", label: "Serveuses", icon: UserRound, roles: ["directeur", "directrice"] },
-  { href: "/tables", label: "Tables", icon: Table2, roles: ["directeur", "directrice"] },
-  { href: "/analytics", label: "Stats", icon: BarChart3, roles: ["directeur", "directrice"] },
-  { href: "/users", label: "Équipe", icon: Users, roles: ["directeur", "directrice"] },
-  { href: "/settings", label: "Réglages", icon: Settings2, roles: ["directeur", "directrice"] },
-  { href: "/guide", label: "Guide", icon: BookOpen, roles: ["directeur", "directrice", "gerant"] },
-];
+import { useAppModule } from "@/components/shared/app-module-context";
+import { moduleNavItems } from "@/lib/nav";
 
 export function MobileNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { moduleId } = useAppModule();
   const role = session?.user?.role ?? "";
 
-  const visibleItems = navItems.filter((item) => item.roles.includes(role));
+  const visibleItems = moduleNavItems(moduleId, role);
   const activeItem = visibleItems.find(
     (item) => pathname === item.href || pathname.startsWith(item.href + "/")
   );
@@ -65,7 +41,7 @@ export function MobileNav() {
               )}
             >
               <Icon className={cn("w-5 h-5", isActive && "text-[#0D0D0D]")} />
-              <span className="text-[9px] font-medium truncate">{item.label}</span>
+              <span className="text-[9px] font-medium truncate">{item.mobileLabel ?? item.label}</span>
               {isActive && (
                 <div className="w-1 h-1 rounded-full bg-[#0D0D0D]" />
               )}

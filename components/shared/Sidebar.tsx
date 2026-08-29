@@ -8,24 +8,15 @@ import { signOut, useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
-  LayoutDashboard,
-  Package,
-  TruckIcon,
-  ShoppingCart,
-  Wallet,
-  Users,
-  UserRound,
-  Table2,
-  BarChart3,
   LogOut,
-  Settings2,
-  BookOpen,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useSidebarLayout } from "@/components/shared/sidebar-layout-context";
+import { useAppModule } from "@/components/shared/app-module-context";
+import { APP_MODULES, moduleNavItems } from "@/lib/nav";
 import { DEFAULT_LOGO_URL, DEFAULT_SOLUTION_NAME } from "@/lib/app-settings";
 import {
   Dialog,
@@ -36,24 +27,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const navItems = [
-  { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, roles: ["directeur", "directrice", "gerant"] },
-  { href: "/products", label: "Produits", icon: Package, roles: ["directeur", "directrice"] },
-  { href: "/supplies", label: "Approvisionnements", icon: TruckIcon, roles: ["directeur", "directrice", "gerant"] },
-  { href: "/sales", label: "Ventes", icon: ShoppingCart, roles: ["directeur", "directrice", "gerant"] },
-  { href: "/cash", label: "Caisse", icon: Wallet, roles: ["directeur", "directrice", "gerant"] },
-  { href: "/waitresses", label: "Serveuses", icon: UserRound, roles: ["directeur", "directrice"] },
-  { href: "/tables", label: "Tables", icon: Table2, roles: ["directeur", "directrice"] },
-  { href: "/analytics", label: "Analytiques", icon: BarChart3, roles: ["directeur", "directrice"] },
-  { href: "/users", label: "Utilisateurs", icon: Users, roles: ["directeur", "directrice"] },
-  { href: "/settings", label: "Paramètres", icon: Settings2, roles: ["directeur", "directrice"] },
-  { href: "/guide", label: "Guide", icon: BookOpen, roles: ["directeur", "directrice", "gerant"] },
-];
-
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { collapsed, toggleCollapsed } = useSidebarLayout();
+  const { moduleId } = useAppModule();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const role = session?.user?.role ?? "";
   const name = session?.user?.name ?? "";
@@ -69,8 +47,8 @@ export function Sidebar() {
   });
   const logoSrc = branding?.logoUrl || DEFAULT_LOGO_URL;
   const solutionName = branding?.solutionName || DEFAULT_SOLUTION_NAME;
-
-  const visibleItems = navItems.filter((item) => item.roles.includes(role));
+  const moduleLabel = APP_MODULES.find((m) => m.id === moduleId)?.label ?? "Bar";
+  const sectionItems = moduleNavItems(moduleId, role);
 
   return (
     <aside
@@ -97,7 +75,7 @@ export function Sidebar() {
         {!collapsed && (
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold leading-tight">{solutionName}</p>
-            <p className="text-[10px] leading-tight text-white/40">Bar Restaurant</p>
+            <p className="text-[10px] leading-tight text-white/40">{moduleLabel}</p>
           </div>
         )}
         <Button
@@ -118,7 +96,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className={cn("flex-1 space-y-0.5 overflow-y-auto py-4", collapsed ? "px-2" : "px-3")}>
-        {visibleItems.map((item) => {
+        {sectionItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
 

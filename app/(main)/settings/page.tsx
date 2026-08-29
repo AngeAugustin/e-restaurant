@@ -27,9 +27,10 @@ type SettingsResponse = {
   solutionName: string;
   lowStockAlertEmails: string[];
   lowStockAlertThreshold: number;
+  cookDiplomas: string[];
 };
 
-type SettingsTab = "customization" | "alerts";
+type SettingsTab = "customization" | "alerts" | "kitchen";
 type AlertEmailField = {
   id: string;
   value: string;
@@ -71,6 +72,9 @@ export default function SettingsPage() {
   const [lowStockThresholdSaved, setLowStockThresholdSaved] = useState(
     DEFAULT_LOW_STOCK_ALERT_THRESHOLD
   );
+  const [diplomaDraft, setDiplomaDraft] = useState("");
+  const [cookDiplomas, setCookDiplomas] = useState<string[]>([]);
+  const [cookDiplomasSaved, setCookDiplomasSaved] = useState<string[]>([]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["app-settings"],
@@ -97,6 +101,9 @@ export default function SettingsPage() {
       typeof data.lowStockAlertThreshold === "number" ? data.lowStockAlertThreshold : DEFAULT_LOW_STOCK_ALERT_THRESHOLD;
     setLowStockThresholdSaved(thr);
     setLowStockThresholdDraft(String(thr));
+    const diplomas = Array.isArray(data.cookDiplomas) ? data.cookDiplomas : [];
+    setCookDiplomas(diplomas);
+    setCookDiplomasSaved(diplomas);
     applyPrimaryColorToDocument(data.primaryColor);
     setSettingsInitialized(true);
   }, [data, settingsInitialized]);
@@ -233,6 +240,30 @@ export default function SettingsPage() {
     },
   });
 
+  const saveDiplomasMutation = useMutation({
+    mutationFn: async (next: string[]) => {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cookDiplomas: next }),
+      });
+      if (!res.ok) {
+        const err = (await res.json()) as { error?: string };
+        throw new Error(err.error ?? "Impossible de sauvegarder les diplômes");
+      }
+      return (await res.json()) as SettingsResponse;
+    },
+    onSuccess: (payload) => {
+      qc.setQueryData(["app-settings"], payload);
+      setCookDiplomas(payload.cookDiplomas ?? []);
+      setCookDiplomasSaved(payload.cookDiplomas ?? []);
+      toast({ variant: "success", title: "Diplômes enregistrés" });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: err.message });
+    },
+  });
+
   const validatedEmails = useMemo(() => {
     const normalized = alertEmailFields
       .filter((entry) => entry.isValidated && entry.value.trim())
@@ -343,6 +374,13 @@ export default function SettingsPage() {
             >
               <BellRing className="w-4 h-4" />
               Alertes
+            </Button>
+            <Button
+              type="button"
+              variant={activeTab === "kitchen" ? "default" : "outline"}
+              onClick={() => setActiveTab("kitchen")}
+            >
+              Cuisine
             </Button>
           </div>
         </CardContent>
@@ -543,7 +581,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </div>
-      ) : (
+      ) : activeTab === "alerts" ? (
         <div className="space-y-6">
           <Card className="min-w-0">
             <CardHeader>
@@ -679,6 +717,67 @@ export default function SettingsPage() {
           </Card>
           </div>
         </div>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Diplômes des cuisinières</CardTitle>
+            <CardDescription>
+              Liste de diplômes proposée à la saisie des fiches cuisinières.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                value={diplomaDraft}
+                onChange={(e) => setDiplomaDraft(e.target.value)}
+                placeholder="Ex. CAP Cuisine"
+                disabled={!canManageAlerts}
+              />
+              <Button
+                type="button"
+                onClick={() => {
+                  const name = diplomaDraft.trim();
+                  if (!name) return;
+                  if (cookDiplomas.includes(name)) {
+                    toast({ variant: "destructive", title: "Déjà présent" });
+                    return;
+                  }
+                  setCookDiplomas((prev) => [...prev, name]);
+                  setDiplomaDraft("");
+                }}
+                disabled={!canManageAlerts}
+              >
+                <Plus className="w-4 h-4" />
+                Ajouter
+              </Button>
+            </div>
+            <ul className="divide-y rounded-xl border">
+              {cookDiplomas.map((d) => (
+                <li key={d} className="flex items-center justify-between px-4 py-2 text-sm">
+                  {d}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="text-rose-600"
+                    disabled={!canManageAlerts}
+                    onClick={() => setCookDiplomas((prev) => prev.filter((x) => x !== d))}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <Button
+              type="button"
+              onClick={() => saveDiplomasMutation.mutate(cookDiplomas)}
+              disabled={!canManageAlerts || saveDiplomasMutation.isPending}
+            >
+              <Save className="w-4 h-4" />
+              {saveDiplomasMutation.isPending ? "Enregistrement..." : "Enregistrer"}
+            </Button>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -14,6 +14,8 @@ export interface IAppSettingDocument extends Document {
   solutionName: string;
   lowStockAlertEmails: string[];
   lowStockAlertThreshold: number;
+  /** Diplômes disponibles pour les fiches cuisinières. */
+  cookDiplomas: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,6 +55,10 @@ const AppSettingSchema = new Schema<IAppSettingDocument>(
       min: 0,
       max: 999,
     },
+    cookDiplomas: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );
@@ -89,6 +95,14 @@ if (existingModel) {
         default: DEFAULT_LOW_STOCK_ALERT_THRESHOLD,
         min: 0,
         max: 999,
+      },
+    });
+  }
+  if (!existingModel.schema.path("cookDiplomas")) {
+    existingModel.schema.add({
+      cookDiplomas: {
+        type: [String],
+        default: [],
       },
     });
   }

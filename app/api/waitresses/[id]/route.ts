@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
 import Waitress from "@/models/Waitress";
 import Sale from "@/models/Sale";
+import "@/models/JobTitle";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAuth();
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   await connectDB();
   const { id } = await params;
 
-  const waitress = await Waitress.findById(id);
+  const waitress = await Waitress.findById(id).populate("jobTitle", "name salary");
   if (!waitress) {
     return NextResponse.json({ error: "Serveuse introuvable" }, { status: 404 });
   }
@@ -26,10 +27,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   await connectDB();
   const { id } = await params;
   const body = await req.json();
-  const { firstName, lastName, phone } = body;
+  const { firstName, lastName, phone, paymentMode, jobTitle } = body;
 
   if (!firstName || !lastName) {
     return NextResponse.json({ error: "Prénom et nom requis" }, { status: 400 });
+  }
+  if (paymentMode !== "CASH" && paymentMode !== "MOBILE_MONEY") {
+    return NextResponse.json({ error: "Le mode de paiement est requis" }, { status: 400 });
   }
 
   const waitress = await Waitress.findByIdAndUpdate(
@@ -38,9 +42,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       firstName: String(firstName).trim(),
       lastName: String(lastName).trim(),
       phone: phone != null && String(phone).trim() !== "" ? String(phone).trim() : undefined,
+      paymentMode,
+      jobTitle: jobTitle || undefined,
     },
     { new: true, runValidators: true }
-  );
+  ).populate("jobTitle", "name salary");
 
   if (!waitress) {
     return NextResponse.json({ error: "Serveuse introuvable" }, { status: 404 });

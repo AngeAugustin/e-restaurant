@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export type CashSessionStatus = "OPEN" | "CLOSED";
+export type CashSessionKind = "BAR" | "KITCHEN";
 
 export interface ICashSessionDocument extends Document {
   name: string;
@@ -8,6 +9,8 @@ export interface ICashSessionDocument extends Document {
   openingFloat: number;
   /** Renseigné à la clôture : le fond a-t-il été repris ? */
   openingFloatRecovered?: boolean;
+  /** BAR par défaut (sessions existantes sans champ). */
+  kind: CashSessionKind;
   status: CashSessionStatus;
   closedAt?: Date;
   createdBy: mongoose.Types.ObjectId;
@@ -36,6 +39,12 @@ const CashSessionSchema = new Schema<ICashSessionDocument>(
       type: Boolean,
       required: false,
     },
+    kind: {
+      type: String,
+      enum: ["BAR", "KITCHEN"],
+      default: "BAR",
+      index: true,
+    },
     status: {
       type: String,
       enum: ["OPEN", "CLOSED"],
@@ -56,6 +65,13 @@ const CashSessionSchema = new Schema<ICashSessionDocument>(
 );
 
 CashSessionSchema.index({ status: 1, createdAt: -1 });
+CashSessionSchema.index({ kind: 1, status: 1, createdAt: -1 });
+
+const existingModel = mongoose.models.CashSession as Model<ICashSessionDocument> | undefined;
+
+if (existingModel && !existingModel.schema.path("kind")) {
+  mongoose.deleteModel("CashSession");
+}
 
 const CashSession: Model<ICashSessionDocument> =
   (mongoose.models.CashSession as Model<ICashSessionDocument> | undefined) ||

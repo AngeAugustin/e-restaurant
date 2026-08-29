@@ -4,14 +4,14 @@ import { requireAuth } from "@/lib/auth-middleware";
 import CashSession from "@/models/CashSession";
 import Sale from "@/models/Sale";
 import Supply from "@/models/Supply";
-import { buildCashSessionName } from "@/lib/cash-session";
+import { barCashSessionFilter, buildCashSessionName } from "@/lib/cash-session";
 
 export async function GET() {
   const { error } = await requireAuth(["directeur", "gerant"]);
   if (error) return error;
 
   await connectDB();
-  const sessions = await CashSession.find()
+  const sessions = await CashSession.find(barCashSessionFilter())
     .populate("createdBy", "firstName lastName")
     .sort({ createdAt: -1 })
     .lean();
@@ -21,12 +21,13 @@ export async function GET() {
       const start = new Date(s.createdAt);
       const end = s.closedAt ? new Date(s.closedAt) : new Date();
 
-      const sales = await Sale.find({
-        status: "COMPLETED",
-        createdAt: { $gte: start, $lte: end },
-      })
-        .select("totalAmount paymentMethod")
-        .lean<Array<{ totalAmount?: number; paymentMethod?: "CASH" | "MOBILE_MONEY" }>>();
+      const createdAt = { $gte: start, $lte: end };
+      const [sales, pendingCount] = await Promise.all([
+        Sale.find({ status: "COMPLETED", createdAt })
+          .select("totalAmount")
+          .lean<Array<{ totalAmount?: number }>>(),
+        Sale.countDocuments({ status: "PENDING", createdAt }),
+      ]);
 
       const totalSales = sales.reduce((sum, sale) => sum + Number(sale.totalAmount ?? 0), 0);
 
@@ -41,6 +42,8 @@ export async function GET() {
         financialSummary: {
           totalSales,
           totalSupplies,
+          completedCount: sales.length,
+          pendingCount,
         },
       };
     })
@@ -61,7 +64,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Fond de caisse invalide." }, { status: 400 });
   }
 
-  const active = await CashSession.findOne({ status: "OPEN" }).select("_id").lean();
+  const active = await CashSession.findOne({ ...barCashSessionFilter(), status: "OPEN" }).select("_id").lean();
   if (active) {
     return NextResponse.json(
       { error: "Une session est déjà ouverte. Clôturez-la avant d'en ouvrir une nouvelle." },
@@ -71,9 +74,10 @@ export async function POST(req: NextRequest) {
 
   const now = new Date();
   const cashSession = await CashSession.create({
-    name: buildCashSessionName(now),
+    name: buildCashSessionName(now, "BAR"),
     sessionDate: now,
     openingFloat,
+    kind: "BAR",
     status: "OPEN",
     createdBy: session!.user.id,
   });

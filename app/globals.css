@@ -67,16 +67,26 @@
     margin: 5mm;
   }
 
+  @page payroll-doc {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+
   body * {
     visibility: hidden;
   }
 
   #sale-receipt-print,
-  #sale-receipt-print * {
+  #sale-receipt-print *,
+  #kitchen-receipt-print,
+  #kitchen-receipt-print *,
+  #payroll-slip-print,
+  #payroll-slip-print * {
     visibility: visible;
   }
 
-  #sale-receipt-print {
+  #sale-receipt-print,
+  #kitchen-receipt-print {
     position: absolute;
     left: 0;
     top: 0;
@@ -88,6 +98,22 @@
     border-radius: 0 !important;
     background: #fff !important;
     padding: 4mm !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  #payroll-slip-print {
+    page: payroll-doc;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 182mm;
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #fff !important;
+    padding: 0 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
