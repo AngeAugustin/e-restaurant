@@ -1,10 +1,11 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 
-export type PayrollBeneficiaryType = "WAITRESS" | "COOK" | "MANAGER";
+export type PayrollBeneficiaryType = "WAITRESS" | "KITCHEN_WAITRESS" | "COOK" | "MANAGER";
 
 export interface IPayrollDocument extends Document {
   beneficiaryType: PayrollBeneficiaryType;
   waitress?: Types.ObjectId;
+  kitchenWaitress?: Types.ObjectId;
   cook?: Types.ObjectId;
   user?: Types.ObjectId;
   jobTitle?: Types.ObjectId;
@@ -18,6 +19,7 @@ export interface IPayrollDocument extends Document {
   paidAt: Date;
   comment?: string;
   attachmentUrl?: string;
+  isPaid?: boolean;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -27,10 +29,11 @@ const PayrollSchema = new Schema<IPayrollDocument>(
   {
     beneficiaryType: {
       type: String,
-      enum: ["WAITRESS", "COOK", "MANAGER"],
+      enum: ["WAITRESS", "KITCHEN_WAITRESS", "COOK", "MANAGER"],
       required: true,
     },
     waitress: { type: Schema.Types.ObjectId, ref: "Waitress" },
+    kitchenWaitress: { type: Schema.Types.ObjectId, ref: "KitchenWaitress" },
     cook: { type: Schema.Types.ObjectId, ref: "Cook" },
     user: { type: Schema.Types.ObjectId, ref: "User" },
     jobTitle: { type: Schema.Types.ObjectId, ref: "JobTitle" },
@@ -78,6 +81,10 @@ const PayrollSchema = new Schema<IPayrollDocument>(
       type: String,
       trim: true,
     },
+    isPaid: {
+      type: Boolean,
+      default: false,
+    },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -90,11 +97,17 @@ const PayrollSchema = new Schema<IPayrollDocument>(
 PayrollSchema.index({ paidAt: -1 });
 PayrollSchema.index({ beneficiaryType: 1, paidAt: -1 });
 
-const existingModel = mongoose.models.Payroll as Model<IPayrollDocument> | undefined;
+const existingPayroll = mongoose.models.Payroll as Model<IPayrollDocument> | undefined;
 if (
-  existingModel?.schema.path("supervisor") ||
-  (existingModel && !existingModel.schema.path("bonusAmount")) ||
-  (existingModel && !existingModel.schema.path("bonuses"))
+  existingPayroll?.schema.path("supervisor") ||
+  (existingPayroll && !existingPayroll.schema.path("bonusAmount")) ||
+  (existingPayroll && !existingPayroll.schema.path("bonuses")) ||
+  (existingPayroll && !existingPayroll.schema.path("kitchenWaitress")) ||
+  (existingPayroll && !existingPayroll.schema.path("isPaid")) ||
+  (existingPayroll &&
+    !((existingPayroll.schema.path("beneficiaryType") as { enumValues?: string[] } | undefined)?.enumValues?.includes(
+      "KITCHEN_WAITRESS"
+    )))
 ) {
   mongoose.deleteModel("Payroll");
 }

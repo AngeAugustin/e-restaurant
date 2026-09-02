@@ -7,11 +7,12 @@ import { parsePayrollBonuses, payrollBonusTotal } from "@/lib/payroll";
 import { resolvePayrollBaseSalary } from "@/lib/payroll-server";
 import Payroll from "@/models/Payroll";
 import "@/models/Waitress";
+import "@/models/KitchenWaitress";
 import "@/models/Cook";
 import "@/models/User";
 import "@/models/JobTitle";
 
-const TYPES = new Set(["WAITRESS", "COOK", "MANAGER"]);
+const TYPES = new Set(["WAITRESS", "KITCHEN_WAITRESS", "COOK", "MANAGER"]);
 
 export async function GET(req: NextRequest) {
   const { error } = await requireAuth([...DIRECTION_ROLES]);
@@ -40,6 +41,7 @@ export async function GET(req: NextRequest) {
   const [items, totals] = await Promise.all([
     Payroll.find(filter)
       .populate("waitress", "firstName lastName")
+      .populate("kitchenWaitress", "firstName lastName")
       .populate("cook", "firstName lastName")
       .populate("user", "firstName lastName role")
       .populate("jobTitle", "name salary")
@@ -113,9 +115,11 @@ export async function POST(req: NextRequest) {
     attachmentUrl: typeof body?.attachmentUrl === "string" ? body.attachmentUrl.trim() : undefined,
     jobTitle: body?.jobTitle || undefined,
     createdBy: session!.user.id,
+    isPaid: false,
   };
 
   if (beneficiaryType === "WAITRESS") payload.waitress = new Types.ObjectId(body.personId);
+  else if (beneficiaryType === "KITCHEN_WAITRESS") payload.kitchenWaitress = new Types.ObjectId(body.personId);
   else if (beneficiaryType === "COOK") payload.cook = new Types.ObjectId(body.personId);
   else payload.user = new Types.ObjectId(body.personId);
 
@@ -125,6 +129,7 @@ export async function POST(req: NextRequest) {
 
   const payroll = await Payroll.create(payload);
   await payroll.populate("waitress", "firstName lastName");
+  await payroll.populate("kitchenWaitress", "firstName lastName");
   await payroll.populate("cook", "firstName lastName");
   await payroll.populate("user", "firstName lastName role");
   await payroll.populate("jobTitle", "name salary");

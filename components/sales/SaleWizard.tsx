@@ -112,8 +112,8 @@ export default function SaleWizard({
   });
 
   const { data: waitresses } = useQuery<IWaitress[]>({
-    queryKey: ["waitresses"],
-    queryFn: async () => (await fetch("/api/waitresses")).json(),
+    queryKey: ["waitresses", { activeOnly: true }],
+    queryFn: async () => (await fetch("/api/waitresses?activeOnly=1")).json(),
   });
 
   const { data: tables } = useQuery<IRestaurantTable[]>({

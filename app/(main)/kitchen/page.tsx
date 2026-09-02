@@ -140,7 +140,7 @@ export default function KitchenOrdersPage() {
                 <tr className="border-b border-slate-200/70 bg-slate-950/[0.025] text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                   <th className="whitespace-nowrap px-6 py-3.5 font-semibold">Date</th>
                   <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Plaquette</th>
-                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Cuisinière</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Serveuse-cuisinière</th>
                   <th className="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Menus</th>
                   <th className="whitespace-nowrap px-4 py-3.5 text-right font-semibold">Total</th>
                   <th className="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Statut</th>
@@ -150,7 +150,7 @@ export default function KitchenOrdersPage() {
               <tbody className="divide-y divide-slate-100/90">
                 <AnimatePresence>
                   {listItems.map((order) => {
-                    const cook = order.cook as { firstName: string; lastName: string };
+                    const kitchenWaitress = order.kitchenWaitress as { firstName: string; lastName: string };
                     const plate = order.plate as { number: string };
                     return (
                       <motion.tr key={order._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="group hover:bg-gradient-to-r hover:from-violet-500/[0.04]">
@@ -160,7 +160,11 @@ export default function KitchenOrdersPage() {
                           </span>
                         </td>
                         <td className="px-4 py-4 font-medium">{plate?.number ?? "—"}</td>
-                        <td className="px-4 py-4 text-slate-600">{cook?.firstName} {cook?.lastName}</td>
+                        <td className="px-4 py-4 text-slate-600">
+                          {kitchenWaitress?.firstName
+                            ? `${kitchenWaitress.firstName} ${kitchenWaitress.lastName}`
+                            : "—"}
+                        </td>
                         <td className="px-4 py-4 text-center">
                           <span className="inline-flex items-center rounded-full border border-cyan-200/55 bg-cyan-500/10 px-2.5 py-0.5 text-xs font-semibold">
                             {order.items.length} menu{order.items.length > 1 ? "s" : ""}

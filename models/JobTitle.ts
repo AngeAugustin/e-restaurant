@@ -14,7 +14,7 @@ const JobTitleSchema = new Schema<IJobTitleDocument>(
   {
     beneficiaryType: {
       type: String,
-      enum: ["WAITRESS", "COOK", "MANAGER"],
+      enum: ["WAITRESS", "KITCHEN_WAITRESS", "COOK", "MANAGER"],
       required: [true, "Le type est requis"],
       unique: true,
       index: true,
@@ -40,8 +40,14 @@ JobTitleSchema.pre("validate", function (next) {
   next();
 });
 
-const existingModel = mongoose.models.JobTitle as Model<IJobTitleDocument> | undefined;
-if (existingModel && !existingModel.schema.path("beneficiaryType")) {
+const existingJobTitle = mongoose.models.JobTitle as Model<IJobTitleDocument> | undefined;
+if (
+  existingJobTitle &&
+  (!existingJobTitle.schema.path("beneficiaryType") ||
+    !((existingJobTitle.schema.path("beneficiaryType") as { enumValues?: string[] } | undefined)?.enumValues?.includes(
+      "KITCHEN_WAITRESS"
+    )))
+) {
   mongoose.deleteModel("JobTitle");
 }
 

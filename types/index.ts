@@ -8,6 +8,7 @@ export interface IUser {
   phone: string;
   address: string;
   role: UserRole;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -101,6 +102,7 @@ export interface IWaitress {
   phone?: string;
   paymentMode?: "CASH" | "MOBILE_MONEY";
   jobTitle?: IJobTitle | string;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -178,6 +180,18 @@ export interface IKitchenPlate {
   occupiedByPendingOrderId?: string | null;
 }
 
+export interface IKitchenWaitress {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  paymentMode?: "CASH" | "MOBILE_MONEY";
+  jobTitle?: IJobTitle | string;
+  isActive?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface IKitchenOrderItem {
   menu: IMenu | string;
   quantity: number;
@@ -191,6 +205,7 @@ export type KitchenOrderPaymentMethod = SalePaymentMethod;
 export interface IKitchenOrder {
   _id: string;
   cook: ICook | string;
+  kitchenWaitress?: IKitchenWaitress | string;
   plate: IKitchenPlate | string;
   items: IKitchenOrderItem[];
   totalAmount: number;
@@ -217,7 +232,7 @@ export interface KitchenOrdersListResponse {
   stats: KitchenOrdersListStats;
 }
 
-export type PayrollBeneficiaryType = "WAITRESS" | "COOK" | "MANAGER";
+export type PayrollBeneficiaryType = "WAITRESS" | "KITCHEN_WAITRESS" | "COOK" | "MANAGER";
 
 export interface IJobTitle {
   _id: string;
@@ -232,6 +247,7 @@ export interface IPayroll {
   _id: string;
   beneficiaryType: PayrollBeneficiaryType;
   waitress?: IWaitress | string;
+  kitchenWaitress?: IKitchenWaitress | string;
   cook?: ICook | string;
   user?: IUser | string;
   jobTitle?: IJobTitle | string;
@@ -245,6 +261,7 @@ export interface IPayroll {
   paidAt: string;
   comment?: string;
   attachmentUrl?: string;
+  isPaid?: boolean;
   createdBy: IUser | string;
   createdAt: string;
   updatedAt: string;

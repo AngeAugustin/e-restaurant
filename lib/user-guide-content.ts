@@ -47,7 +47,7 @@ export const COMMON_INTRO: GuideSection = {
       title: "Navigation générale",
       paragraphs: [
         "Sur ordinateur, le menu latéral gauche liste les pages du module actif. Sur mobile, une barre de navigation en bas affiche les raccourcis principaux.",
-        "En haut de l'écran, une barre de modules permet de basculer entre les grands espaces de travail : Bar, Cuisine, Paie et Administration. Chaque module affiche uniquement les pages auxquelles votre rôle a accès.",
+        "En haut de l'écran, une barre de modules permet de basculer entre les grands espaces de travail : Bar, Cuisine, Comptabilité et Administration. Chaque module affiche uniquement les pages auxquelles votre rôle a accès.",
         "Votre nom et votre rôle sont visibles en bas du menu ; cliquez sur votre avatar pour accéder à « Mon profil » (modifier nom, téléphone, mot de passe).",
         "Le guide utilisateur (cette page) est accessible depuis le module Administration.",
       ],
@@ -60,7 +60,7 @@ export const COMMON_INTRO: GuideSection = {
       steps: [
         "Bar — activité boissons et salle : tableau de bord, produits, approvisionnements, ventes, caisse bar, serveuses, tables, analytiques.",
         "Cuisine — activité repas : commandes cuisine, caisse cuisine, menus, cuisinières, plaquettes.",
-        "Paie — trésorerie et personnel : comptabilité (situation financière), fiches de paie, dépenses générales.",
+        "Comptabilité — trésorerie et personnel : situation financière, fiches de paie, dépenses générales.",
         "Administration — pilotage : utilisateurs, paramètres de l'application, guide utilisateur.",
       ],
       tips: [
@@ -73,7 +73,7 @@ export const COMMON_INTRO: GuideSection = {
       paragraphs: [
         "Directeur : accès complet sur tous les modules, y compris la suppression définitive des données sensibles (produits, utilisateurs, tables, fiches de paie, etc.).",
         "Directrice : gestion opérationnelle et pilotage sur l'ensemble des modules ; certaines suppressions sont réservées au directeur.",
-        "Gérant : exploitation terrain — bar (approvisionnements, ventes, caisse bar), cuisine (commandes et caisse cuisine), paie (comptabilité en consultation et dépenses). Pas d'accès au catalogue produits, aux référentiels cuisine (menus, cuisinières, plaquettes), à la paie des salaires, aux analytiques, aux utilisateurs ni aux paramètres.",
+        "Gérant : exploitation terrain — bar (approvisionnements, ventes, caisse bar), cuisine (commandes et caisse cuisine), comptabilité (situation financière en consultation et dépenses). Pas d'accès au catalogue produits, aux référentiels cuisine (menus, cuisinières, plaquettes), à la paie des salaires, aux analytiques, aux utilisateurs ni aux paramètres.",
       ],
     },
   ],
@@ -84,11 +84,11 @@ export const ROLE_META: Record<UserRole, RoleGuideMeta> = {
     role: "directeur",
     label: "Directeur",
     shortDescription:
-      "Pilotage global de l'établissement sur les quatre modules : bar, cuisine, paie, administration et suppressions sensibles.",
+      "Pilotage global de l'établissement sur les quatre modules : bar, cuisine, comptabilité, administration et suppressions sensibles.",
     accessSummary: [
       "Module Bar : tableau de bord, produits, approvisionnements, ventes, caisse, serveuses, tables, analytiques",
       "Module Cuisine : commandes, caisse cuisine, menus, cuisinières, plaquettes",
-      "Module Paie : comptabilité, fiches de paie, dépenses",
+      "Module Comptabilité : situation financière, fiches de paie, dépenses",
       "Module Administration : utilisateurs, paramètres, guide, profil",
       "Suppression des enregistrements sensibles (produits, utilisateurs, fiches de paie, etc.)",
     ],
@@ -97,11 +97,11 @@ export const ROLE_META: Record<UserRole, RoleGuideMeta> = {
     role: "directrice",
     label: "Directrice",
     shortDescription:
-      "Gestion quotidienne et supervision sur les modules bar, cuisine, paie et administration ; certaines suppressions réservées au directeur.",
+      "Gestion quotidienne et supervision sur les modules bar, cuisine, comptabilité et administration ; certaines suppressions réservées au directeur.",
     accessSummary: [
       "Module Bar : tableau de bord, produits, approvisionnements, ventes, caisse, serveuses, tables, analytiques",
       "Module Cuisine : commandes, caisse cuisine, menus, cuisinières, plaquettes",
-      "Module Paie : comptabilité, fiches de paie, dépenses",
+      "Module Comptabilité : situation financière, fiches de paie, dépenses",
       "Module Administration : utilisateurs, paramètres, guide, profil",
       "Modification et création ; suppressions limitées (certaines réservées au directeur)",
     ],
@@ -110,13 +110,12 @@ export const ROLE_META: Record<UserRole, RoleGuideMeta> = {
     role: "gerant",
     label: "Gérant",
     shortDescription:
-      "Exploitation terrain : bar (approvisionnements, ventes, caisse), cuisine (commandes et caisse cuisine), paie (comptabilité et dépenses).",
+      "Exploitation terrain : bar (approvisionnements, ventes, caisse) et cuisine (commandes et caisse cuisine).",
     accessSummary: [
       "Module Bar : tableau de bord, approvisionnements, ventes, caisse bar",
       "Module Cuisine : commandes cuisine, caisse cuisine",
-      "Module Paie : comptabilité (consultation), dépenses",
-      "Module Administration : guide, profil",
-      "Pas d'accès : produits, serveuses, tables, analytiques, menus, cuisinières, plaquettes, fiches de paie, utilisateurs, paramètres",
+      "Mon profil (avatar dans le menu latéral)",
+      "Pas d'accès : produits, serveuses, tables, analytiques, menus, cuisinières, serveuses-cuisinières, plaquettes, comptabilité, paie, dépenses, administration (utilisateurs, paramètres, guide)",
     ],
   },
 };
@@ -589,13 +588,39 @@ const kitchenCashSection: GuideSection = {
 
 const accountingSection: GuideSection = {
   id: "accounting",
-  title: "Comptabilité (module Paie)",
+  title: "Comptabilité (module Comptabilité)",
   subsections: [
     {
       title: "Objectif",
       paragraphs: [
         "La page Comptabilité offre une vue consolidée de la trésorerie de l'établissement : solde de départ, entrées (approvisionnements enregistrés), sorties (dépenses) et solde de fin sur la période choisie.",
-        "C'est le point d'entrée du module Paie pour le gérant et la direction.",
+        "C'est le point d'entrée du module Comptabilité pour le gérant et la direction.",
+      ],
+    },
+    {
+      title: "Onglets du module",
+      paragraphs: [
+        "Le menu du module Comptabilité inclut : Comptabilité (situation financière), Fonctions, Catégories, Modes de paiement, Paie et Dépenses.",
+        "Fonctions est réservée à la direction ; le gérant peut consulter la situation et gérer les catégories et modes de paiement des dépenses.",
+      ],
+    },
+    {
+      title: "Fonctions — salaires de référence",
+      paragraphs: [
+        "Définissez le salaire associé à chaque type de personnel (serveuse, serveuse-cuisinière, cuisinière, gérant(e)) avant de créer des fiches de paie.",
+        "Ce montant sert de base automatique lors de la création d'une fiche ; il n'est pas modifiable sur la fiche elle-même.",
+      ],
+      steps: [
+        "Module Comptabilité → menu « Fonctions ».",
+        "Choisissez le type de personnel et saisissez le salaire mensuel de référence.",
+        "Enregistrez : le salaire sera prérempli sur les futures fiches de ce type.",
+      ],
+    },
+    {
+      title: "Catégories et modes de paiement",
+      paragraphs: [
+        "Les pages « Catégories » et « Modes de paiement » du menu permettent d'enrichir les listes déroulantes des dépenses (aucune catégorie fixe imposée à l'installation).",
+        "Créez les libellés dont vous avez besoin avant ou pendant la saisie des dépenses.",
       ],
     },
     {
@@ -605,7 +630,7 @@ const accountingSection: GuideSection = {
         "La direction peut le créer ou le modifier ; le gérant peut le consulter.",
       ],
       steps: [
-        "Module Paie → « Comptabilité ».",
+        "Module Comptabilité → « Comptabilité ».",
         "Cliquez sur « Solde à l'ouverture » (ou « Modifier le solde » si déjà défini).",
         "Saisissez le montant, la date de référence et une note optionnelle, puis validez.",
       ],
@@ -632,7 +657,7 @@ const accountingSection: GuideSection = {
 
 const payrollSection: GuideSection = {
   id: "payroll",
-  title: "Paie (module Paie)",
+  title: "Paie (module Comptabilité)",
   subsections: [
     {
       title: "Accès et objectif",
@@ -641,21 +666,15 @@ const payrollSection: GuideSection = {
       ],
     },
     {
-      title: "Onglet Fonctions — salaires de référence",
+      title: "Fonctions — salaires de référence",
       paragraphs: [
-        "Avant de créer des fiches, définissez le salaire associé à chaque type de personnel : Serveuse, Cuisinière, Gérant(e).",
-        "Ce montant sert de base automatique lors de la création d'une fiche ; il n'est pas modifiable sur la fiche elle-même.",
-      ],
-      steps: [
-        "Module Paie → « Paie » → onglet « Fonctions ».",
-        "Choisissez le type de personnel et saisissez le salaire mensuel de référence.",
-        "Enregistrez : le salaire sera prérempli sur les futures fiches de ce type.",
+        "Les salaires de référence par type de personnel sont configurés dans le menu Comptabilité → « Fonctions » (voir la section Comptabilité du guide).",
       ],
     },
     {
       title: "Créer une fiche de paie",
       steps: [
-        "Onglet « Fiches » → « Nouvelle fiche ».",
+        "Module Comptabilité → « Paie » → « Nouvelle fiche ».",
         "Choisissez le type de personnel et le bénéficiaire.",
         "Indiquez la période couverte (du … au …) et la date de paiement.",
         "Le salaire de la fonction s'affiche en lecture seule.",
@@ -664,7 +683,7 @@ const payrollSection: GuideSection = {
         "Ajoutez un commentaire et/ou un justificatif si besoin, puis enregistrez.",
       ],
       tips: [
-        "Le salaire de base provient toujours de l'onglet Fonctions : pour le modifier, mettez à jour la fonction correspondante.",
+        "Le salaire de base provient de Comptabilité → Fonctions : pour le modifier, mettez à jour la fonction correspondante.",
       ],
     },
     {
@@ -687,7 +706,7 @@ const payrollSection: GuideSection = {
 
 const expensesSection: GuideSection = {
   id: "expenses",
-  title: "Dépenses (module Paie)",
+  title: "Dépenses (module Comptabilité)",
   subsections: [
     {
       title: "Enregistrer une dépense",
@@ -695,7 +714,7 @@ const expensesSection: GuideSection = {
         "Les dépenses générales de l'établissement (électricité, entretien, courses, etc.) sont saisies ici. Elles impactent la situation comptable affichée dans Comptabilité.",
       ],
       steps: [
-        "Module Paie → « Dépenses ».",
+        "Module Comptabilité → « Dépenses ».",
         "Cliquez sur « Nouvelle dépense ».",
         "Renseignez le libellé, la catégorie, le montant, la date, le mode de paiement, un commentaire et un justificatif optionnel.",
         "Validez : la dépense apparaît dans la liste et dans le journal comptable.",
@@ -704,8 +723,7 @@ const expensesSection: GuideSection = {
     {
       title: "Catégories et modes de paiement",
       paragraphs: [
-        "Les onglets « Catégories » et « Modes de paiement » permettent d'enrichir les listes déroulantes au fil du temps (aucune catégorie fixe imposée à l'installation).",
-        "Créez les libellés dont vous avez besoin avant ou pendant la saisie des dépenses.",
+        "Les catégories et modes de paiement sont gérés dans le menu Comptabilité → « Catégories » et « Modes de paiement » (voir la section Comptabilité du guide).",
       ],
     },
     {
@@ -759,7 +777,7 @@ const paieWorkflowSection: GuideSection = {
       title: "Mise en place (direction)",
       steps: [
         "Définir le solde à l'ouverture dans Comptabilité.",
-        "Configurer les salaires de référence dans Paie → Fonctions.",
+        "Configurer les salaires de référence dans le menu Fonctions.",
         "Créer les catégories et modes de paiement des dépenses si nécessaire.",
       ],
     },
@@ -827,7 +845,7 @@ export const ROLE_GUIDES: Record<UserRole, GuideSection[]> = {
         {
           title: "Ce que vous pouvez faire",
           paragraphs: [
-            "Vous gérez le quotidien sur tous les modules : bar, cuisine, paie (comptabilité, fiches de paie, dépenses), administration (utilisateurs, paramètres).",
+            "Vous gérez le quotidien sur tous les modules : bar, cuisine, comptabilité (situation financière, fiches de paie, dépenses), administration (utilisateurs, paramètres).",
           ],
         },
         {
@@ -847,8 +865,6 @@ export const ROLE_GUIDES: Record<UserRole, GuideSection[]> = {
     cashSection,
     kitchenOrdersSection,
     kitchenCashSection,
-    accountingSection,
-    expensesSection,
     profileSection,
     {
       id: "workflow",
@@ -874,28 +890,19 @@ export const ROLE_GUIDES: Record<UserRole, GuideSection[]> = {
           title: "Service cuisine",
           steps: [
             "Passez au module Cuisine et ouvrez la caisse cuisine si ce n'est pas déjà fait.",
-            "Prenez les commandes repas (menus, cuisinière, plaquette).",
+            "Prenez les commandes repas (menus, plaquette).",
             "Clôturez les commandes cuisine au paiement.",
           ],
         },
         {
-          title: "Dépenses et suivi",
+          title: "Fin de journée",
           steps: [
-            "Module Paie : enregistrez les dépenses de la journée au fur et à mesure.",
-            "Consultez la Comptabilité pour suivre le solde de trésorerie.",
-          ],
-        },
-        {
-          title: "Soir — clôture",
-          steps: [
-            "Vérifiez qu'il ne reste pas de commandes en attente (bar et cuisine).",
-            "Clôturez la session de caisse bar, puis la session de caisse cuisine.",
-            "Indiquez si les fonds de caisse ont été repris.",
+            "Fermez les sessions de caisse bar et cuisine avec les montants réels.",
+            "Vérifiez que toutes les ventes et commandes en attente ont été traitées.",
           ],
         },
       ],
     },
-    cuisineWorkflowSection,
   ],
 };
 

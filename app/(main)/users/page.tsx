@@ -35,7 +35,8 @@ import type { IUser } from "@/types";
 async function fetchUsers(): Promise<IUser[]> {
   const res = await fetch("/api/users");
   if (!res.ok) throw new Error("Failed to fetch");
-  return res.json();
+  const data = (await res.json()) as IUser[];
+  return data.map((u) => ({ ...u, isActive: u.isActive !== false }));
 }
 
 interface UserForm {
@@ -237,6 +238,10 @@ export default function UsersPage() {
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [editUser, setEditUser] = useState<IUser | undefined>();
   const [userToDelete, setUserToDelete] = useState<IUser | null>(null);
+  const [userToggleConfirm, setUserToggleConfirm] = useState<{
+    user: IUser;
+    nextActive: boolean;
+  } | null>(null);
 
   const deleteUser = useMutation({
     mutationFn: async (id: string) => {
@@ -246,6 +251,37 @@ export default function UsersPage() {
     onSuccess: () => {
       toast({ variant: "success", title: "Utilisateur supprimé" });
       qc.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: err.message });
+    },
+  });
+
+  const toggleUser = useMutation({
+    mutationFn: async ({ id, nextActive }: { id: string; nextActive: boolean }) => {
+      const res = await fetch(`/api/users/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: nextActive ? "activate" : "deactivate" }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof body.error === "string" ? body.error : "Mise à jour impossible");
+      }
+      return body as IUser;
+    },
+    onSuccess: (_, { id, nextActive }) => {
+      setUserToggleConfirm(null);
+      qc.setQueryData<IUser[]>(["users"], (old) =>
+        old?.map((u) => (String(u._id) === String(id) ? { ...u, isActive: nextActive } : u)) ?? old
+      );
+      toast({
+        variant: "success",
+        title: nextActive ? "Utilisateur réactivé" : "Utilisateur désactivé",
+        description: nextActive
+          ? "Le compte peut à nouveau se connecter à l'application."
+          : "Le compte ne peut plus se connecter. Vous pouvez le réactiver à tout moment.",
+      });
     },
     onError: (err: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: err.message });
@@ -328,7 +364,7 @@ export default function UsersPage() {
           isLoading={isLoading}
           empty={!isLoading && (users?.length === 0)}
           emptyMessage="Aucun utilisateur"
-          skeletonColSpan={6}
+          skeletonColSpan={7}
         >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] border-collapse text-left text-sm">
@@ -339,6 +375,7 @@ export default function UsersPage() {
                   <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Rôle</th>
                   <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Téléphone</th>
                   <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Inscription</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Statut</th>
                   <th className="whitespace-nowrap px-6 py-3.5 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -392,8 +429,36 @@ export default function UsersPage() {
                           {formatDate(user.createdAt)}
                         </span>
                       </td>
+                      <td className="px-4 py-4">
+                        {user.isActive ? (
+                          <span className="inline-flex rounded-full border border-emerald-200/50 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-900/90">
+                            Actif
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full border border-slate-200/80 bg-slate-500/10 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                            Désactivé
+                          </span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-right">
                         <div className="inline-flex items-center justify-end gap-1 opacity-90 transition group-hover:opacity-100">
+                          {user._id !== session?.user?.id && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-9 rounded-xl border-slate-200/80 bg-white/80 text-xs shadow-sm backdrop-blur-sm"
+                              disabled={toggleUser.isPending}
+                              onClick={() =>
+                                setUserToggleConfirm({
+                                  user,
+                                  nextActive: !user.isActive,
+                                })
+                              }
+                            >
+                              {user.isActive ? "Désactiver" : "Activer"}
+                            </Button>
+                          )}
                           <Button
                             type="button"
                             variant="outline"
@@ -435,6 +500,70 @@ export default function UsersPage() {
       />
 
       <UserDialog open={dialogOpen} onClose={() => setDialogOpen(false)} user={editUser} />
+
+      <Dialog
+        open={!!userToggleConfirm}
+        onOpenChange={(open) => {
+          if (!open && !toggleUser.isPending) setUserToggleConfirm(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {userToggleConfirm?.nextActive ? "Réactiver l'utilisateur" : "Désactiver l'utilisateur"}
+            </DialogTitle>
+            <DialogDescription>
+              {userToggleConfirm ? (
+                userToggleConfirm.nextActive ? (
+                  <>
+                    Voulez-vous réactiver{" "}
+                    <span className="font-medium text-[#0D0D0D]">
+                      {userToggleConfirm.user.firstName} {userToggleConfirm.user.lastName}
+                    </span>
+                    ? Le compte pourra à nouveau se connecter.
+                  </>
+                ) : (
+                  <>
+                    Voulez-vous désactiver{" "}
+                    <span className="font-medium text-[#0D0D0D]">
+                      {userToggleConfirm.user.firstName} {userToggleConfirm.user.lastName}
+                    </span>
+                    ? Le compte ne pourra plus se connecter. Vous pourrez le réactiver à tout moment.
+                  </>
+                )
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={toggleUser.isPending}
+              onClick={() => setUserToggleConfirm(null)}
+            >
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              variant={userToggleConfirm?.nextActive ? "default" : "destructive"}
+              disabled={toggleUser.isPending || !userToggleConfirm}
+              onClick={() => {
+                if (!userToggleConfirm) return;
+                toggleUser.mutate({
+                  id: userToggleConfirm.user._id,
+                  nextActive: userToggleConfirm.nextActive,
+                });
+              }}
+            >
+              {toggleUser.isPending
+                ? "Enregistrement…"
+                : userToggleConfirm?.nextActive
+                  ? "Réactiver"
+                  : "Désactiver"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
         <DialogContent className="max-w-md">

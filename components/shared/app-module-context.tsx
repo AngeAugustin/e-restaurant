@@ -15,6 +15,7 @@ import {
   type AppModuleId,
   moduleFromPathname,
   moduleHomeHref,
+  visibleModules,
 } from "@/lib/nav";
 
 const STORAGE_KEY = "e-stock-app-module";
@@ -56,7 +57,13 @@ export function AppModuleProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    if (!role) return;
+    const allowedModules = visibleModules(role);
     const fromPath = moduleFromPathname(pathname);
+    if (fromPath && !allowedModules.some((m) => m.id === fromPath)) {
+      router.replace(moduleHomeHref("bar", role));
+      return;
+    }
     if (fromPath) {
       setModuleState((prev) => {
         if (prev === fromPath) return prev;
@@ -69,13 +76,18 @@ export function AppModuleProvider({ children }: { children: ReactNode }) {
       });
     } else {
       const stored = readStoredModule();
-      if (stored) setModuleState(stored);
+      if (stored && allowedModules.some((m) => m.id === stored)) {
+        setModuleState(stored);
+      }
     }
     setHydrated(true);
-  }, [pathname]);
+  }, [pathname, role, router]);
 
   const setModuleId = useCallback(
     (id: AppModuleId, options?: { navigate?: boolean }) => {
+      const allowed = visibleModules(role).some((m) => m.id === id);
+      if (!allowed) return;
+
       setModuleState(id);
       try {
         localStorage.setItem(STORAGE_KEY, id);

@@ -37,9 +37,13 @@ export function KitchenReceiptPreview({ order }: { order: IKitchenOrder }) {
     if (branding?.logoUrl) setLogoBroken(false);
   }, [branding?.logoUrl]);
 
+  const kitchenWaitress = order.kitchenWaitress as { firstName?: string; lastName?: string };
   const cook = order.cook as { firstName?: string; lastName?: string };
   const plate = order.plate as { number?: string };
-  const cookLabel = [cook?.firstName, cook?.lastName].filter(Boolean).join(" ") || "—";
+  const serviceLabel =
+    [kitchenWaitress?.firstName, kitchenWaitress?.lastName].filter(Boolean).join(" ") ||
+    [cook?.firstName, cook?.lastName].filter(Boolean).join(" ") ||
+    "—";
   const plateLabel = plate?.number ? `Plaquette ${plate.number}` : "—";
 
   const handleDownloadPdf = async () => {
@@ -125,8 +129,8 @@ export function KitchenReceiptPreview({ order }: { order: IKitchenOrder }) {
             <span className="font-medium text-[#111] text-right">{plateLabel}</span>
           </div>
           <div className="flex justify-between gap-2">
-            <span className="text-[#6B7280]">Cuisinière</span>
-            <span className="text-right font-medium text-[#111]">{cookLabel}</span>
+            <span className="text-[#6B7280]">Serveuse-cuisinière</span>
+            <span className="text-right font-medium text-[#111]">{serviceLabel}</span>
           </div>
         </div>
 

@@ -19,8 +19,8 @@ const MenuSchema = new Schema<IMenuDocument>(
     },
     image: {
       type: String,
-      required: [true, "La photo du menu est requise"],
       trim: true,
+      default: "",
     },
     price: {
       type: Number,
@@ -40,8 +40,17 @@ const MenuSchema = new Schema<IMenuDocument>(
   { timestamps: true }
 );
 
+const MODEL_NAME = "Menu";
+const existingMenu = mongoose.models[MODEL_NAME] as Model<IMenuDocument> | undefined;
+if (existingMenu) {
+  const imagePath = existingMenu.schema.path("image");
+  if (imagePath) {
+    imagePath.required(false);
+    imagePath.default("");
+  }
+}
+
 const Menu: Model<IMenuDocument> =
-  (mongoose.models.Menu as Model<IMenuDocument> | undefined) ||
-  mongoose.model<IMenuDocument>("Menu", MenuSchema);
+  existingMenu || mongoose.model<IMenuDocument>(MODEL_NAME, MenuSchema);
 
 export default Menu;

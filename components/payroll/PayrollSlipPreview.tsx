@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Download, Loader2, Printer } from "lucide-react";
+import { Download, Loader2, Printer, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { exportElementToA4Pdf } from "@/lib/receipt-pdf";
@@ -10,6 +10,9 @@ import { toast } from "@/hooks/use-toast";
 import { DEFAULT_LOGO_URL, DEFAULT_SOLUTION_NAME } from "@/lib/app-settings";
 import { PAYROLL_TYPE_LABEL, payrollBaseSalary, payrollBonuses } from "@/lib/payroll";
 import type { IPayroll } from "@/types";
+
+const EMPLOYER_SIGNATURE_SRC = "/signature.jpeg";
+const EMPLOYER_SIGNATURE_NAME = "D. Protus";
 
 async function fetchBranding(): Promise<{ logoUrl: string; solutionName: string }> {
   const res = await fetch("/api/settings");
@@ -21,6 +24,7 @@ function personName(p: IPayroll): string {
   const n = (o?: { firstName?: string; lastName?: string } | string) =>
     typeof o === "object" && o ? `${o.firstName ?? ""} ${o.lastName ?? ""}`.trim() : "";
   if (p.beneficiaryType === "WAITRESS") return n(p.waitress as { firstName?: string; lastName?: string }) || "—";
+  if (p.beneficiaryType === "KITCHEN_WAITRESS") return n(p.kitchenWaitress as { firstName?: string; lastName?: string }) || "—";
   if (p.beneficiaryType === "COOK") return n(p.cook as { firstName?: string; lastName?: string }) || "—";
   return n(p.user as { firstName?: string; lastName?: string }) || "—";
 }
@@ -41,7 +45,15 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function PayrollSlipPreview({ payroll }: { payroll: IPayroll }) {
+export function PayrollSlipPreview({
+  payroll,
+  onMarkPaid,
+  markingPaid,
+}: {
+  payroll: IPayroll;
+  onMarkPaid?: () => void;
+  markingPaid?: boolean;
+}) {
   const slipRef = useRef<HTMLDivElement>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [logoBroken, setLogoBroken] = useState(false);
@@ -84,6 +96,18 @@ export function PayrollSlipPreview({ payroll }: { payroll: IPayroll }) {
       <div className="no-print mb-4 flex items-center justify-between gap-3">
         <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[#9CA3AF]">Aperçu document</span>
         <div className="flex shrink-0 items-center gap-2">
+          {!payroll.isPaid && onMarkPaid ? (
+            <Button
+              type="button"
+              size="sm"
+              className="h-9 gap-2 rounded-lg"
+              onClick={onMarkPaid}
+              disabled={markingPaid}
+            >
+              {markingPaid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4" />}
+              Payer
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -136,6 +160,15 @@ export function PayrollSlipPreview({ payroll }: { payroll: IPayroll }) {
         <h1 className="mt-6 text-center text-[20px] font-bold uppercase tracking-[0.18em]">
           Fiche de paie
         </h1>
+        {payroll.isPaid ? (
+          <p className="mt-2 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+            Payée
+          </p>
+        ) : (
+          <p className="mt-2 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
+            À payer
+          </p>
+        )}
 
         <section className="mt-6">
           <h2 className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
@@ -198,21 +231,20 @@ export function PayrollSlipPreview({ payroll }: { payroll: IPayroll }) {
           </section>
         ) : null}
 
-        <section className="mt-10 grid grid-cols-2 gap-10 text-[12px]">
-          <div>
-            <p className="font-semibold text-slate-800">L’employeur</p>
-            <p className="mt-1 text-[11px] text-slate-500">Nom et signature</p>
-            <div className="mt-10 border-b border-slate-400" />
-          </div>
-          <div>
-            <p className="font-semibold text-slate-800">Le bénéficiaire</p>
-            <p className="mt-1 text-[11px] text-slate-500">Nom et signature (accusé de réception)</p>
-            <div className="mt-10 border-b border-slate-400" />
+        <section className="mt-10 text-center text-[12px]">
+          <p className="font-semibold text-slate-800">L&apos;employeur</p>
+          <div className="mx-auto mt-4 flex flex-col items-center justify-center">
+            <img
+              src={EMPLOYER_SIGNATURE_SRC}
+              alt={`Signature de ${EMPLOYER_SIGNATURE_NAME}`}
+              className="h-24 w-auto max-w-[220px] object-contain"
+            />
+            <p className="mt-3 text-[13px] font-semibold text-slate-900">{EMPLOYER_SIGNATURE_NAME}</p>
           </div>
         </section>
 
         <p className="mt-8 text-center text-[10px] leading-relaxed text-slate-500">
-          Document établi à titre de justificatif de versement de salaire. À conserver par les deux parties.
+          Document établi à titre de justificatif de versement de salaire.
         </p>
       </div>
     </div>

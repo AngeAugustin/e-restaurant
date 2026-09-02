@@ -7,6 +7,8 @@ import { kitchenCashSessionFilter } from "@/lib/cash-session";
 import KitchenOrder from "@/models/KitchenOrder";
 import Menu from "@/models/Menu";
 import Cook from "@/models/Cook";
+import KitchenWaitress from "@/models/KitchenWaitress";
+import { resolveDefaultKitchenCookId } from "@/lib/kitchen-staff";
 import CashSession from "@/models/CashSession";
 import "@/models/KitchenPlate";
 import "@/models/User";
@@ -55,6 +57,7 @@ export async function GET(req: NextRequest) {
     ]),
     KitchenOrder.find()
       .populate("cook", "firstName lastName photo")
+      .populate("kitchenWaitress", "firstName lastName phone")
       .populate("plate", "number")
       .populate("items.menu", "name image price")
       .populate("createdBy", "firstName lastName")
@@ -85,8 +88,8 @@ export async function POST(req: NextRequest) {
 
   await connectDB();
   const body = await req.json();
-  const { cookId, plateId, items } = body as {
-    cookId?: string;
+  const { kitchenWaitressId, plateId, items } = body as {
+    kitchenWaitressId?: string;
     plateId?: string;
     items?: Array<{ menuId: string; quantity: number }>;
   };
@@ -105,14 +108,32 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!cookId || !plateId || !items || items.length === 0) {
+  if (!kitchenWaitressId || !plateId || !items || items.length === 0) {
     return NextResponse.json(
-      { error: "Cuisinière, plaquette et menus sont requis" },
+      { error: "Serveuse-cuisinière, plaquette et menus sont requis" },
       { status: 400 }
     );
   }
 
-  const cook = await Cook.findById(cookId).select("isActive").lean<{ isActive?: boolean } | null>();
+  const kitchenWaitress = await KitchenWaitress.findById(kitchenWaitressId)
+    .select("isActive")
+    .lean<{ isActive?: boolean } | null>();
+  if (!kitchenWaitress || kitchenWaitress.isActive === false) {
+    return NextResponse.json(
+      { error: "Serveuse-cuisinière introuvable ou désactivée" },
+      { status: 400 }
+    );
+  }
+
+  const defaultCookId = await resolveDefaultKitchenCookId();
+  if (!defaultCookId) {
+    return NextResponse.json(
+      { error: "Aucune cuisinière active enregistrée. Ajoutez une cuisinière dans l'équipe cuisine." },
+      { status: 400 }
+    );
+  }
+
+  const cook = await Cook.findById(defaultCookId).select("isActive").lean<{ isActive?: boolean } | null>();
   if (!cook || cook.isActive === false) {
     return NextResponse.json({ error: "Cuisinière introuvable ou désactivée" }, { status: 400 });
   }
@@ -149,7 +170,8 @@ export async function POST(req: NextRequest) {
   const totalAmount = orderItems.reduce((sum, item) => sum + item.total, 0);
 
   const order = await KitchenOrder.create({
-    cook: new Types.ObjectId(cookId),
+    cook: new Types.ObjectId(defaultCookId),
+    kitchenWaitress: new Types.ObjectId(kitchenWaitressId),
     plate: new Types.ObjectId(plateId),
     items: orderItems,
     totalAmount,
@@ -158,6 +180,7 @@ export async function POST(req: NextRequest) {
   });
 
   await order.populate("cook", "firstName lastName photo");
+  await order.populate("kitchenWaitress", "firstName lastName phone");
   await order.populate("plate", "number");
   await order.populate("items.menu", "name image price");
   await order.populate("createdBy", "firstName lastName");

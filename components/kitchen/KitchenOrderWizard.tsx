@@ -14,7 +14,6 @@ import {
   User,
   UtensilsCrossed,
   Receipt,
-  ChefHat,
   ShoppingCart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,7 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, cn, getInitials } from "@/lib/utils";
-import type { ICook, IKitchenPlate, IKitchenOrder, IMenu, IKitchenOrderItem } from "@/types";
+import type { IKitchenPlate, IKitchenOrder, IKitchenWaitress, IMenu, IKitchenOrderItem } from "@/types";
 import { ProductThumb } from "@/components/sales/ProductThumb";
 
 interface CartItem {
@@ -37,7 +36,7 @@ type Step = 1 | 2 | 3 | 4;
 
 const STEPS: { n: Step; label: string; description: string; icon: typeof User }[] = [
   { n: 1, label: "Menus", description: "Sélection et quantités", icon: UtensilsCrossed },
-  { n: 2, label: "Cuisinière", description: "Qui prépare", icon: ChefHat },
+  { n: 2, label: "Serveuses-Cuisinières", description: "Qui sert", icon: User },
   { n: 3, label: "Plaquette", description: "Support de service", icon: User },
   { n: 4, label: "Validation", description: "Récapitulatif", icon: Receipt },
 ];
@@ -60,7 +59,7 @@ export default function KitchenOrderWizard({
   const qc = useQueryClient();
   const hydratedRef = useRef(false);
   const [step, setStep] = useState<Step>(1);
-  const [cookId, setCookId] = useState("");
+  const [kitchenWaitressId, setKitchenWaitressId] = useState("");
   const [plateId, setPlateId] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -84,9 +83,9 @@ export default function KitchenOrderWizard({
     queryFn: async () => (await fetch("/api/menus?activeOnly=1")).json(),
   });
 
-  const { data: cooks } = useQuery<ICook[]>({
-    queryKey: ["cooks", { activeOnly: true }],
-    queryFn: async () => (await fetch("/api/cooks?activeOnly=1")).json(),
+  const { data: kitchenWaitresses } = useQuery<IKitchenWaitress[]>({
+    queryKey: ["kitchen-waitresses", { activeOnly: true }],
+    queryFn: async () => (await fetch("/api/kitchen-waitresses?activeOnly=1")).json(),
   });
 
   const { data: plates } = useQuery<IKitchenPlate[]>({
@@ -119,9 +118,11 @@ export default function KitchenOrderWizard({
     if (mode !== "edit" || !order || hydratedRef.current) return;
     if (order.status !== "PENDING") return;
 
-    const c = order.cook as { _id?: string };
+    const kw = order.kitchenWaitress as { _id?: string };
     const p = order.plate as { _id?: string };
-    setCookId(typeof order.cook === "string" ? order.cook : (c._id ?? ""));
+    setKitchenWaitressId(
+      typeof order.kitchenWaitress === "string" ? order.kitchenWaitress : (kw._id ?? "")
+    );
     setPlateId(typeof order.plate === "string" ? order.plate : (p._id ?? ""));
     setCart(
       order.items.map((item) => {
@@ -169,11 +170,11 @@ export default function KitchenOrderWizard({
 
   const handleSubmit = async () => {
     if (wizardLocked) return;
-    if (!cookId || !plateId || cart.length === 0) return;
+    if (!kitchenWaitressId || !plateId || cart.length === 0) return;
     setIsSubmitting(true);
 
     const payload = {
-      cookId,
+      kitchenWaitressId,
       plateId,
       items: cart.map((i) => ({ menuId: i.menuId, quantity: i.quantity })),
     };
@@ -211,13 +212,17 @@ export default function KitchenOrderWizard({
     router.push(mode === "create" ? "/kitchen" : `/kitchen/${editOrderId}`);
   };
 
-  const cookName = () => {
-    const c = cooks?.find((x) => x._id === cookId);
-    return c ? `${c.firstName} ${c.lastName}` : "";
+  const kitchenWaitressName = () => {
+    const w = kitchenWaitresses?.find((x) => x._id === kitchenWaitressId);
+    if (w) return `${w.firstName} ${w.lastName}`;
+    const fromOrder = order?.kitchenWaitress as { firstName?: string; lastName?: string } | undefined;
+    if (fromOrder?.firstName || fromOrder?.lastName) {
+      return `${fromOrder.firstName ?? ""} ${fromOrder.lastName ?? ""}`.trim();
+    }
+    return "";
   };
 
   const plateLabel = () => plates?.find((x) => x._id === plateId)?.number ?? "";
-  const selectedCook = cooks?.find((x) => x._id === cookId);
 
   const isPlateOccupied = (p: IKitchenPlate) => {
     const occ = p.occupiedByPendingOrderId;
@@ -265,7 +270,7 @@ export default function KitchenOrderWizard({
           </h1>
           <p className="text-sm text-[#6B7280] mt-1">
             {mode === "create"
-              ? "Menus, cuisinière, plaquette, puis validation."
+              ? "Menus, serveuse-cuisinière, plaquette, puis validation."
               : "Modifiez la commande tant qu’elle est en attente."}
           </p>
         </div>
@@ -423,30 +428,26 @@ export default function KitchenOrderWizard({
 
         {step === 2 && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl">
-            {(cooks ?? []).map((cook) => {
-              const selected = cookId === cook._id;
+            {(kitchenWaitresses ?? []).map((w) => {
+              const selected = kitchenWaitressId === w._id;
               return (
                 <button
-                  key={cook._id}
+                  key={w._id}
                   type="button"
-                  onClick={() => setCookId(cook._id)}
+                  onClick={() => setKitchenWaitressId(w._id)}
                   className={cn(
                     "flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all",
                     selected ? "border-primary bg-primary/5 shadow-sm" : "border-[#E5E5E5] bg-white hover:border-primary/40"
                   )}
                 >
-                  {cook.photo ? (
-                    <ProductThumb imageUrl={cook.photo} name={`${cook.firstName} ${cook.lastName}`} sizeClass="h-14 w-14" />
-                  ) : (
-                    <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[#F5F5F5] text-sm font-semibold">
-                      {getInitials(cook.firstName, cook.lastName)}
-                    </div>
-                  )}
+                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[#F5F5F5] text-sm font-semibold">
+                    {getInitials(w.firstName, w.lastName)}
+                  </div>
                   <div className="min-w-0">
                     <p className="font-semibold text-[#0D0D0D]">
-                      {cook.firstName} {cook.lastName}
+                      {w.firstName} {w.lastName}
                     </p>
-                    <p className="text-xs text-[#6B7280]">{cook.phone}</p>
+                    <p className="text-xs text-[#6B7280]">{w.phone ?? "—"}</p>
                   </div>
                 </button>
               );
@@ -494,13 +495,8 @@ export default function KitchenOrderWizard({
               </CardHeader>
               <CardContent className="pt-6 space-y-4">
                 <div className="flex items-center justify-between text-sm gap-3">
-                  <span className="text-[#6B7280]">Cuisinière</span>
-                  <span className="flex items-center gap-2 font-medium text-primary">
-                    {selectedCook?.photo ? (
-                      <ProductThumb imageUrl={selectedCook.photo} name={cookName()} sizeClass="h-8 w-8" />
-                    ) : null}
-                    {cookName()}
-                  </span>
+                  <span className="text-[#6B7280]">Serveuse-cuisinière</span>
+                  <span className="font-medium text-primary">{kitchenWaitressName()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-[#6B7280]">Plaquette</span>
@@ -543,7 +539,7 @@ export default function KitchenOrderWizard({
             </Button>
           )}
           {step === 2 && (
-            <Button onClick={() => setStep(3)} disabled={wizardLocked || !cookId} className="min-w-[160px]">
+            <Button onClick={() => setStep(3)} disabled={wizardLocked || !kitchenWaitressId} className="min-w-[160px]">
               Continuer
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>

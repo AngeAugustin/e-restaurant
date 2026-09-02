@@ -44,7 +44,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const firstName = typeof body?.firstName === "string" ? body.firstName.trim() : "";
   const lastName = typeof body?.lastName === "string" ? body.lastName.trim() : "";
   const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
-  const diploma = typeof body?.diploma === "string" ? body.diploma.trim() : "";
   const photo = typeof body?.photo === "string" ? body.photo.trim() : "";
   const paymentMode = body?.paymentMode;
   const jobTitle = body?.jobTitle;
@@ -62,7 +61,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   cook.firstName = firstName;
   cook.lastName = lastName;
   cook.phone = phone;
-  cook.diploma = diploma || undefined;
   cook.photo = photo || undefined;
   cook.paymentMode = paymentMode;
   cook.jobTitle = jobTitle || undefined;

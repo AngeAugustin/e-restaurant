@@ -11,7 +11,7 @@ export async function GET() {
 
   await connectDB();
   const titles = await JobTitle.find({ beneficiaryType: { $exists: true } }).lean();
-  const order = { WAITRESS: 0, COOK: 1, MANAGER: 2 } as const;
+  const order = { WAITRESS: 0, KITCHEN_WAITRESS: 1, COOK: 2, MANAGER: 3 } as const;
   titles.sort(
     (a, b) =>
       (order[a.beneficiaryType as keyof typeof order] ?? 9) -

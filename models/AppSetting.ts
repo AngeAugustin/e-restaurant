@@ -4,6 +4,7 @@ import {
   DEFAULT_LOW_STOCK_ALERT_THRESHOLD,
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_SOLUTION_NAME,
+  DEFAULT_FONT_SIZE_SCALE,
   GLOBAL_SETTINGS_KEY,
 } from "@/lib/app-settings";
 
@@ -14,6 +15,7 @@ export interface IAppSettingDocument extends Document {
   solutionName: string;
   lowStockAlertEmails: string[];
   lowStockAlertThreshold: number;
+  fontSizeScale: number;
   /** Diplômes disponibles pour les fiches cuisinières. */
   cookDiplomas: string[];
   createdAt: Date;
@@ -54,6 +56,10 @@ const AppSettingSchema = new Schema<IAppSettingDocument>(
       default: DEFAULT_LOW_STOCK_ALERT_THRESHOLD,
       min: 0,
       max: 999,
+    },
+    fontSizeScale: {
+      type: Number,
+      default: DEFAULT_FONT_SIZE_SCALE,
     },
     cookDiplomas: {
       type: [String],
@@ -103,6 +109,14 @@ if (existingModel) {
       cookDiplomas: {
         type: [String],
         default: [],
+      },
+    });
+  }
+  if (!existingModel.schema.path("fontSizeScale")) {
+    existingModel.schema.add({
+      fontSizeScale: {
+        type: Number,
+        default: DEFAULT_FONT_SIZE_SCALE,
       },
     });
   }

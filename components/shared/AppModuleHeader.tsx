@@ -1,6 +1,6 @@
 "use client";
 
-import { Wine, CookingPot, Banknote, Shield } from "lucide-react";
+import { Wine, CookingPot, Calculator, Shield } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { useAppModule } from "@/components/shared/app-module-context";
@@ -9,7 +9,7 @@ import { type AppModuleId, visibleModules } from "@/lib/nav";
 const ICONS = {
   bar: Wine,
   cuisine: CookingPot,
-  paie: Banknote,
+  paie: Calculator,
   administration: Shield,
 } as const;
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Settings2, Palette, BellRing, Save, Plus, Check, Trash2 } from "lucide-react";
+import { Settings2, Palette, BellRing, Save, Plus, Check, Trash2, Type } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -12,12 +12,16 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import {
   applyPrimaryColorToDocument,
+  applyFontSizeScaleToDocument,
   DEFAULT_LOGO_URL,
   DEFAULT_LOW_STOCK_ALERT_THRESHOLD,
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_SOLUTION_NAME,
+  DEFAULT_FONT_SIZE_SCALE,
+  FONT_SIZE_SCALE_OPTIONS,
   normalizeHexColor,
   PRIMARY_COLOR_PALETTE,
+  ROOT_FONT_SIZE_PX,
 } from "@/lib/app-settings";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +32,7 @@ type SettingsResponse = {
   lowStockAlertEmails: string[];
   lowStockAlertThreshold: number;
   cookDiplomas: string[];
+  fontSizeScale: number;
 };
 
 type SettingsTab = "customization" | "alerts" | "kitchen";
@@ -61,6 +66,9 @@ export default function SettingsPage() {
   const [hexDraft, setHexDraft] = useState<string>(DEFAULT_PRIMARY_COLOR);
   const [appliedColor, setAppliedColor] = useState<string>(DEFAULT_PRIMARY_COLOR);
   const [savedColor, setSavedColor] = useState<string>(DEFAULT_PRIMARY_COLOR);
+  const [selectedFontScale, setSelectedFontScale] = useState<number>(DEFAULT_FONT_SIZE_SCALE);
+  const [appliedFontScale, setAppliedFontScale] = useState<number>(DEFAULT_FONT_SIZE_SCALE);
+  const [savedFontScale, setSavedFontScale] = useState<number>(DEFAULT_FONT_SIZE_SCALE);
   const [currentLogoUrl, setCurrentLogoUrl] = useState(DEFAULT_LOGO_URL);
   const [solutionName, setSolutionName] = useState(DEFAULT_SOLUTION_NAME);
   const [solutionNameDraft, setSolutionNameDraft] = useState(DEFAULT_SOLUTION_NAME);
@@ -89,6 +97,11 @@ export default function SettingsPage() {
     setHexDraft(data.primaryColor);
     setAppliedColor(data.primaryColor);
     setSavedColor(data.primaryColor);
+    const fontScale =
+      typeof data.fontSizeScale === "number" ? data.fontSizeScale : DEFAULT_FONT_SIZE_SCALE;
+    setSelectedFontScale(fontScale);
+    setAppliedFontScale(fontScale);
+    setSavedFontScale(fontScale);
     setCurrentLogoUrl(data.logoUrl || DEFAULT_LOGO_URL);
     setSolutionName(data.solutionName);
     setSolutionNameDraft(data.solutionName);
@@ -105,6 +118,7 @@ export default function SettingsPage() {
     setCookDiplomas(diplomas);
     setCookDiplomasSaved(diplomas);
     applyPrimaryColorToDocument(data.primaryColor);
+    applyFontSizeScaleToDocument(fontScale);
     setSettingsInitialized(true);
   }, [data, settingsInitialized]);
 
@@ -128,6 +142,34 @@ export default function SettingsPage() {
       setAppliedColor(payload.primaryColor);
       setSavedColor(payload.primaryColor);
       toast({ variant: "success", title: "Couleur principale mise à jour" });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: err.message });
+    },
+  });
+
+  const saveFontSizeMutation = useMutation({
+    mutationFn: async (fontSizeScale: number) => {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fontSizeScale }),
+      });
+      if (!res.ok) {
+        const err = (await res.json()) as { error?: string };
+        throw new Error(err.error ?? "Impossible de sauvegarder la taille de police");
+      }
+      return (await res.json()) as SettingsResponse;
+    },
+    onSuccess: (payload) => {
+      qc.setQueryData(["app-settings"], payload);
+      const scale =
+        typeof payload.fontSizeScale === "number" ? payload.fontSizeScale : DEFAULT_FONT_SIZE_SCALE;
+      applyFontSizeScaleToDocument(scale);
+      setSelectedFontScale(scale);
+      setAppliedFontScale(scale);
+      setSavedFontScale(scale);
+      toast({ variant: "success", title: "Taille de police mise à jour" });
     },
     onError: (err: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: err.message });
@@ -278,6 +320,8 @@ export default function SettingsPage() {
   const canManageAlerts = ["directeur", "directrice"].includes(session?.user?.role ?? "");
   const canApplyColor = selectedColor !== appliedColor;
   const hasUnsavedColor = selectedColor !== savedColor;
+  const canApplyFontScale = selectedFontScale !== appliedFontScale;
+  const hasUnsavedFontScale = selectedFontScale !== savedFontScale;
   const canSaveSolutionName =
     canManageAlerts && solutionNameDraft.trim().length > 0 && solutionNameDraft.trim() !== solutionName;
 
@@ -466,6 +510,75 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Type className="w-4 h-4" />
+                Taille de la police
+              </CardTitle>
+              <CardDescription>
+                Ajuste la taille du texte sur toute l&apos;application (menus, tableaux, formulaires).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-3 sm:grid-cols-3">
+                {FONT_SIZE_SCALE_OPTIONS.map((option) => {
+                  const isSelected = selectedFontScale === option.scale;
+                  const previewPx = Math.round(ROOT_FONT_SIZE_PX * option.scale);
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={cn(
+                        "rounded-xl border p-4 text-left transition-all",
+                        isSelected
+                          ? "border-[#0D0D0D] bg-white ring-2 ring-[#0D0D0D]/10"
+                          : "border-[#E5E5E5] bg-[#FCFCFC] hover:border-[#D1D5DB]"
+                      )}
+                      onClick={() => setSelectedFontScale(option.scale)}
+                    >
+                      <p className="text-sm font-semibold text-[#0D0D0D]">{option.label}</p>
+                      <p className="mt-1 text-xs text-[#6B7280]">{option.hint}</p>
+                      <p
+                        className="mt-3 font-medium text-[#0D0D0D]"
+                        style={{ fontSize: `${previewPx}px`, lineHeight: 1.35 }}
+                      >
+                        Exemple de texte
+                      </p>
+                      <p className="mt-1 text-[10px] text-[#9CA3AF]">{previewPx}px de base</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    applyFontSizeScaleToDocument(selectedFontScale);
+                    setAppliedFontScale(selectedFontScale);
+                  }}
+                  disabled={isLoading || !canApplyFontScale}
+                >
+                  Appliquer
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => saveFontSizeMutation.mutate(selectedFontScale)}
+                  disabled={isLoading || saveFontSizeMutation.isPending || !hasUnsavedFontScale}
+                >
+                  <Save className="w-4 h-4" />
+                  {saveFontSizeMutation.isPending ? "Enregistrement..." : "Enregistrer"}
+                </Button>
+                <p className="text-xs text-[#9CA3AF]">
+                  Taille appliquée :{" "}
+                  {FONT_SIZE_SCALE_OPTIONS.find((o) => o.scale === appliedFontScale)?.label ?? "Standard"}
+                </p>
               </div>
             </CardContent>
           </Card>

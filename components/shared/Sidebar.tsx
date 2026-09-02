@@ -16,7 +16,7 @@ import { cn, getInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useSidebarLayout } from "@/components/shared/sidebar-layout-context";
 import { useAppModule } from "@/components/shared/app-module-context";
-import { APP_MODULES, moduleNavItems } from "@/lib/nav";
+import { APP_MODULES, isNavItemActive, moduleNavItems } from "@/lib/nav";
 import { DEFAULT_LOGO_URL, DEFAULT_SOLUTION_NAME } from "@/lib/app-settings";
 import {
   Dialog,
@@ -98,7 +98,7 @@ export function Sidebar() {
       <nav className={cn("flex-1 space-y-0.5 overflow-y-auto py-4", collapsed ? "px-2" : "px-3")}>
         {sectionItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          const isActive = isNavItemActive(pathname, item);
 
           return (
             <Link

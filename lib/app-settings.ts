@@ -23,6 +23,19 @@ export const PRIMARY_COLOR_PALETTE = [
 
 export const DEFAULT_PRIMARY_COLOR = PRIMARY_COLOR_PALETTE[0];
 
+/** Échelle de la taille de police racine (html) — les utilitaires Tailwind en rem suivent. */
+export const ROOT_FONT_SIZE_PX = 16;
+
+export const FONT_SIZE_SCALE_OPTIONS = [
+  { id: "normal", label: "Standard", scale: 1, hint: "Taille par défaut" },
+  { id: "large", label: "Grand", scale: 1.125, hint: "Texte plus lisible (+12 %)" },
+  { id: "xlarge", label: "Très grand", scale: 1.25, hint: "Confort maximal (+25 %)" },
+] as const;
+
+export type FontSizeScaleId = (typeof FONT_SIZE_SCALE_OPTIONS)[number]["id"];
+
+export const DEFAULT_FONT_SIZE_SCALE = FONT_SIZE_SCALE_OPTIONS[0].scale;
+
 export const DEFAULT_LOGO_URL = "/Logo.png";
 
 /** Nombre d’unités (inclus) en dessous duquel le stock est considéré comme bas (alerte email, indicateurs). */
@@ -51,6 +64,29 @@ export function normalizeLowStockAlertThreshold(input: unknown): number {
 
 export function isAllowedPrimaryColor(color: string): boolean {
   return normalizeHexColor(color) !== null;
+}
+
+export function normalizeFontSizeScale(input: unknown): number {
+  if (typeof input === "number" && Number.isFinite(input)) {
+    if (FONT_SIZE_SCALE_OPTIONS.some((option) => option.scale === input)) return input;
+  }
+  if (typeof input === "string" && input.trim()) {
+    const parsed = Number(input);
+    if (Number.isFinite(parsed) && FONT_SIZE_SCALE_OPTIONS.some((option) => option.scale === parsed)) {
+      return parsed;
+    }
+    const byId = FONT_SIZE_SCALE_OPTIONS.find((option) => option.id === input.trim());
+    if (byId) return byId.scale;
+  }
+  return DEFAULT_FONT_SIZE_SCALE;
+}
+
+export function isAllowedFontSizeScale(scale: number): boolean {
+  return FONT_SIZE_SCALE_OPTIONS.some((option) => option.scale === scale);
+}
+
+export function rootFontSizePx(scale: number): number {
+  return Math.round(ROOT_FONT_SIZE_PX * normalizeFontSizeScale(scale));
 }
 
 export function normalizeHexColor(input: unknown): string | null {
@@ -134,5 +170,13 @@ export function applyPrimaryColorToDocument(hexColor: string): boolean {
   if (!hslTriplet) return false;
   document.documentElement.style.setProperty("--primary", hslTriplet);
   document.documentElement.style.setProperty("--ring", hslTriplet);
+  return true;
+}
+
+export function applyFontSizeScaleToDocument(scale: number): boolean {
+  if (typeof document === "undefined") return false;
+  const normalized = normalizeFontSizeScale(scale);
+  document.documentElement.style.fontSize = `${rootFontSizePx(normalized)}px`;
+  document.documentElement.dataset.fontScale = String(normalized);
   return true;
 }

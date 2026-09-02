@@ -21,6 +21,9 @@ import {
   Wine,
   Shield,
   Calculator,
+  Briefcase,
+  Tags,
+  HandCoins,
 } from "lucide-react";
 
 export type AppModuleId = "bar" | "cuisine" | "paie" | "administration";
@@ -33,6 +36,8 @@ export type AppNavItem = {
   icon: LucideIcon;
   roles: string[];
   module: NavModule;
+  /** When true, only exact pathname match counts as active (not child routes). */
+  exact?: boolean;
 };
 
 export const APP_NAV_ITEMS: AppNavItem[] = [
@@ -49,15 +54,19 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { href: "/kitchen-cash", label: "Caisse cuisine", icon: CircleDollarSign, roles: ["directeur", "directrice", "gerant"], module: "cuisine" },
   { href: "/menus", label: "Menus", icon: UtensilsCrossed, roles: ["directeur", "directrice"], module: "cuisine" },
   { href: "/cooks", label: "Cuisinières", icon: ChefHat, roles: ["directeur", "directrice"], module: "cuisine" },
+  { href: "/kitchen-waitresses", label: "Serveuses-Cuisinières", icon: UserRound, roles: ["directeur", "directrice"], module: "cuisine" },
   { href: "/kitchen-plates", label: "Plaquettes", icon: CreditCard, roles: ["directeur", "directrice"], module: "cuisine" },
 
-  { href: "/accounting", label: "Comptabilité", mobileLabel: "Compta", icon: Calculator, roles: ["directeur", "directrice", "gerant"], module: "paie" },
+  { href: "/accounting", label: "Comptabilité", mobileLabel: "Compta", icon: Calculator, roles: ["directeur", "directrice"], module: "paie", exact: true },
+  { href: "/accounting/fonctions", label: "Fonctions", icon: Briefcase, roles: ["directeur", "directrice"], module: "paie" },
+  { href: "/accounting/categories", label: "Catégories", mobileLabel: "Catég.", icon: Tags, roles: ["directeur", "directrice"], module: "paie" },
+  { href: "/accounting/modes-paiement", label: "Modes de paiement", mobileLabel: "Paiement", icon: HandCoins, roles: ["directeur", "directrice"], module: "paie" },
   { href: "/payroll", label: "Paie", icon: Banknote, roles: ["directeur", "directrice"], module: "paie" },
-  { href: "/expenses", label: "Dépenses", icon: Landmark, roles: ["directeur", "directrice", "gerant"], module: "paie" },
+  { href: "/expenses", label: "Dépenses", icon: Landmark, roles: ["directeur", "directrice"], module: "paie" },
 
   { href: "/users", label: "Utilisateurs", mobileLabel: "Équipe", icon: Users, roles: ["directeur", "directrice"], module: "administration" },
   { href: "/settings", label: "Paramètres", mobileLabel: "Réglages", icon: Settings2, roles: ["directeur", "directrice"], module: "administration" },
-  { href: "/guide", label: "Guide", icon: BookOpen, roles: ["directeur", "directrice", "gerant"], module: "administration" },
+  { href: "/guide", label: "Guide", icon: BookOpen, roles: ["directeur", "directrice"], module: "administration" },
 ];
 
 export const APP_MODULES: {
@@ -67,10 +76,10 @@ export const APP_MODULES: {
   homeHref: string;
   gerantHomeHref?: string;
 }[] = [
-  { id: "bar", label: "Bar", icon: Wine, homeHref: "/dashboard" },
-  { id: "cuisine", label: "Cuisine", icon: CookingPot, homeHref: "/kitchen" },
-  { id: "paie", label: "Paie", icon: Banknote, homeHref: "/accounting", gerantHomeHref: "/accounting" },
-  { id: "administration", label: "Administration", icon: Shield, homeHref: "/users", gerantHomeHref: "/guide" },
+  { id: "bar", label: "Bar", icon: Wine, homeHref: "/dashboard", gerantHomeHref: "/dashboard" },
+  { id: "cuisine", label: "Cuisine", icon: CookingPot, homeHref: "/kitchen", gerantHomeHref: "/kitchen" },
+  { id: "paie", label: "Comptabilité", icon: Calculator, homeHref: "/accounting" },
+  { id: "administration", label: "Administration", icon: Shield, homeHref: "/users" },
 ];
 
 const PATH_PREFIXES: { prefix: string; module: AppModuleId }[] = [
@@ -82,6 +91,7 @@ const PATH_PREFIXES: { prefix: string; module: AppModuleId }[] = [
   { prefix: "/waitresses", module: "bar" },
   { prefix: "/tables", module: "bar" },
   { prefix: "/analytics", module: "bar" },
+  { prefix: "/kitchen-waitresses", module: "cuisine" },
   { prefix: "/kitchen-cash", module: "cuisine" },
   { prefix: "/kitchen-plates", module: "cuisine" },
   { prefix: "/kitchen", module: "cuisine" },
@@ -107,6 +117,11 @@ export function moduleHomeHref(moduleId: AppModuleId, role: string): string {
   if (!mod) return "/dashboard";
   if (role === "gerant" && mod.gerantHomeHref) return mod.gerantHomeHref;
   return mod.homeHref;
+}
+
+export function isNavItemActive(pathname: string, item: AppNavItem): boolean {
+  if (item.exact) return pathname === item.href;
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
 export function moduleNavItems(moduleId: AppModuleId, role: string): AppNavItem[] {

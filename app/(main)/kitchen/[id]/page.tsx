@@ -89,7 +89,11 @@ export default function KitchenOrderDetailPage() {
   }
 
   const cook = order.cook as { firstName: string; lastName: string; photo?: string };
+  const kitchenWaitress = order.kitchenWaitress as { firstName: string; lastName: string };
   const plate = order.plate as { number: string };
+  const serviceName = kitchenWaitress?.firstName
+    ? `${kitchenWaitress.firstName} ${kitchenWaitress.lastName}`
+    : `${cook?.firstName ?? ""} ${cook?.lastName ?? ""}`.trim();
   const createdBy = order.createdBy as { firstName?: string; lastName?: string };
   const canCancel = session?.user?.role !== "gerant";
 
@@ -143,16 +147,12 @@ export default function KitchenOrderDetailPage() {
                 <CardContent className="space-y-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                     <div className="flex min-w-0 flex-1 items-start gap-3">
-                      {cook?.photo ? (
-                        <ProductThumb imageUrl={cook.photo} name={`${cook.firstName} ${cook.lastName}`} sizeClass="h-9 w-9" />
-                      ) : (
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F5F5F5]">
-                          <User className="w-4 h-4" />
-                        </div>
-                      )}
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F5F5F5]">
+                        <User className="w-4 h-4" />
+                      </div>
                       <div>
-                        <p className="text-xs text-[#9CA3AF]">Cuisinière</p>
-                        <p className="font-medium">{cook?.firstName} {cook?.lastName}</p>
+                        <p className="text-xs text-[#9CA3AF]">Serveuse-cuisinière</p>
+                        <p className="font-medium">{serviceName || "—"}</p>
                       </div>
                     </div>
                     <div className="hidden h-10 w-px shrink-0 bg-[#E5E5E5] sm:block" />

@@ -64,20 +64,23 @@ function MenuDialog({ open, onClose, menu }: { open: boolean; onClose: () => voi
       }
       imageUrl = (await up.json()).url;
     }
-    if (!imageUrl) {
-      setSaving(false);
-      toast({ variant: "destructive", title: "Photo obligatoire" });
-      return;
-    }
     const res = await fetch(menu ? `/api/menus/${menu._id}` : "/api/menus", {
       method: menu ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, price: Number(price), image: imageUrl }),
+      body: JSON.stringify({
+        name,
+        price: Number(price),
+        ...(imageUrl ? { image: imageUrl } : {}),
+      }),
     });
     setSaving(false);
     if (!res.ok) {
-      const err = await res.json();
-      toast({ variant: "destructive", title: "Erreur", description: err.error });
+      const err = await res.json().catch(() => ({}));
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: typeof err.error === "string" ? err.error : "Enregistrement impossible",
+      });
       return;
     }
     toast({ variant: "success", title: menu ? "Menu modifié" : "Menu ajouté" });
@@ -101,7 +104,7 @@ function MenuDialog({ open, onClose, menu }: { open: boolean; onClose: () => voi
             <Input type="number" min={1} value={price} onChange={(e) => setPrice(e.target.value)} required />
           </div>
           <div className="space-y-1.5">
-            <Label>Photo (obligatoire)</Label>
+            <Label>Photo (facultatif)</Label>
             <Input
               ref={fileRef}
               type="file"

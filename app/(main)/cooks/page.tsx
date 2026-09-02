@@ -27,23 +27,16 @@ function CookDialog({ open, onClose, cook }: { open: boolean; onClose: () => voi
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
-  const [diploma, setDiploma] = useState("");
   const [paymentMode, setPaymentMode] = useState<"CASH" | "MOBILE_MONEY">("CASH");
   const [photo, setPhoto] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
-
-  const { data: settings } = useQuery({
-    queryKey: ["app-settings"],
-    queryFn: async () => (await fetch("/api/settings")).json() as Promise<{ cookDiplomas?: string[] }>,
-  });
 
   useEffect(() => {
     if (!open) return;
     setFirstName(cook?.firstName ?? "");
     setLastName(cook?.lastName ?? "");
     setPhone(cook?.phone ?? "");
-    setDiploma(cook?.diploma ?? "");
     setPaymentMode(cook?.paymentMode ?? "CASH");
     setPhoto(cook?.photo ?? "");
     setFile(null);
@@ -67,7 +60,7 @@ function CookDialog({ open, onClose, cook }: { open: boolean; onClose: () => voi
     const res = await fetch(cook ? `/api/cooks/${cook._id}` : "/api/cooks", {
       method: cook ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firstName, lastName, phone, diploma, paymentMode, photo: photoUrl }),
+      body: JSON.stringify({ firstName, lastName, phone, paymentMode, photo: photoUrl }),
     });
     setSaving(false);
     if (!res.ok) {
@@ -89,15 +82,6 @@ function CookDialog({ open, onClose, cook }: { open: boolean; onClose: () => voi
             <div className="space-y-1.5"><Label>Nom</Label><Input value={lastName} onChange={(e) => setLastName(e.target.value)} required /></div>
           </div>
           <div className="space-y-1.5"><Label>Téléphone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} required type="tel" /></div>
-          {cook ? (
-            <div className="space-y-1.5">
-              <Label>Diplôme <span className="font-normal text-[#9CA3AF]">(optionnel)</span></Label>
-              <select className="flex h-10 w-full rounded-md border px-3 text-sm" value={diploma} onChange={(e) => setDiploma(e.target.value)}>
-                <option value="">—</option>
-                {(settings?.cookDiplomas ?? []).map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
-          ) : null}
           <div className="space-y-1.5">
             <Label>Mode de paiement</Label>
             <select className="flex h-10 w-full rounded-md border px-3 text-sm" value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as "CASH" | "MOBILE_MONEY")}>
@@ -171,13 +155,12 @@ export default function CooksPage() {
     <div>
       <PageHeader title="Cuisinières" subtitle="Équipe cuisine" action={<Button onClick={() => { setEdit(undefined); setOpen(true); }}><Plus className="h-4 w-4" />Ajouter</Button>} />
       <div className="mb-8 max-w-xs">{isLoading ? <Skeleton className="h-28" /> : <StatsCard title="Cuisinières" value={cooks?.length ?? 0} icon={ChefHat} index={0} />}</div>
-      <PremiumTableShell title="Équipe" isLoading={isLoading} empty={!isLoading && !cooks?.length} emptyMessage="Aucune cuisinière" skeletonRows={5} tableMinWidthClass="min-w-[800px]" skeletonColSpan={5}>
-        <table className="w-full min-w-[800px] text-sm">
+      <PremiumTableShell title="Équipe" isLoading={isLoading} empty={!isLoading && !cooks?.length} emptyMessage="Aucune cuisinière" skeletonRows={5} tableMinWidthClass="min-w-[720px]" skeletonColSpan={4}>
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b text-[11px] uppercase text-slate-500">
               <th className="px-6 py-3 text-left">Cuisinière</th>
               <th className="px-4 py-3">Téléphone</th>
-              <th className="px-4 py-3">Diplôme</th>
               <th className="px-4 py-3">Statut</th>
               <th className="px-6 py-3 text-right">Actions</th>
             </tr>
@@ -194,7 +177,6 @@ export default function CooksPage() {
                   </div>
                 </td>
                 <td className="px-4 py-3"><span className="inline-flex items-center gap-1 text-xs"><Phone className="h-3 w-3" />{c.phone}</span></td>
-                <td className="px-4 py-3 text-xs">{c.diploma || "—"}</td>
                 <td className="px-4 py-3 text-xs">{c.isActive ? "Active" : "Désactivée"}</td>
                 <td className="px-6 py-3 text-right space-x-1">
                   <Button size="sm" variant="outline" onClick={() => toggle(c)}>{c.isActive ? "Désactiver" : "Activer"}</Button>

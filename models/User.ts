@@ -8,6 +8,7 @@ export interface IUserDocument extends Document {
   phone: string;
   address: string;
   role: "directeur" | "directrice" | "gerant";
+  isActive?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +52,10 @@ const UserSchema = new Schema<IUserDocument>(
       type: String,
       enum: ["directeur", "directrice", "gerant"],
       required: [true, "Le rôle est requis"],
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }

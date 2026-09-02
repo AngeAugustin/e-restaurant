@@ -3,7 +3,7 @@
 import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { applyPrimaryColorToDocument } from "@/lib/app-settings";
+import { applyPrimaryColorToDocument, applyFontSizeScaleToDocument } from "@/lib/app-settings";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -26,9 +26,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       try {
         const res = await fetch("/api/settings");
         if (!res.ok) return;
-        const data = (await res.json()) as { primaryColor?: string };
-        if (!isMounted || !data.primaryColor) return;
-        applyPrimaryColorToDocument(data.primaryColor);
+        const data = (await res.json()) as { primaryColor?: string; fontSizeScale?: number };
+        if (!isMounted) return;
+        if (data.primaryColor) applyPrimaryColorToDocument(data.primaryColor);
+        if (data.fontSizeScale != null) applyFontSizeScaleToDocument(data.fontSizeScale);
       } catch {
         // Paramètres indisponibles (ex: écran login) : on conserve les couleurs par défaut.
       }

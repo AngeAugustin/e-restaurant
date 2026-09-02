@@ -40,14 +40,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const name = typeof body?.name === "string" ? body.name.trim() : "";
-  const image = typeof body?.image === "string" ? body.image.trim() : "";
+  const imageRaw = typeof body?.image === "string" ? body.image.trim() : "";
+  const image = imageRaw || menu.image || "";
   const price = Number(body?.price);
 
   if (!name) {
     return NextResponse.json({ error: "Le nom du menu est requis" }, { status: 400 });
   }
-  if (!image || !isAllowedProductImageUrl(image)) {
-    return NextResponse.json({ error: "La photo du menu est obligatoire" }, { status: 400 });
+  if (image && !isAllowedProductImageUrl(image)) {
+    return NextResponse.json({ error: "URL de photo invalide" }, { status: 400 });
   }
   if (!Number.isFinite(price) || price <= 0) {
     return NextResponse.json({ error: "Le prix doit être strictement positif" }, { status: 400 });
@@ -58,11 +59,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Un menu avec ce nom existe déjà" }, { status: 409 });
   }
 
-  menu.name = name;
-  menu.image = image;
-  menu.price = price;
-  await menu.save();
-  return NextResponse.json(menu);
+  try {
+    menu.name = name;
+    menu.image = image;
+    menu.price = price;
+    await menu.save();
+    return NextResponse.json(menu);
+  } catch (err) {
+    console.error("[menus PUT]", err);
+    return NextResponse.json({ error: "Impossible de modifier le menu" }, { status: 500 });
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

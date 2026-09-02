@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { useAppModule } from "@/components/shared/app-module-context";
-import { moduleNavItems } from "@/lib/nav";
+import { isNavItemActive, moduleNavItems } from "@/lib/nav";
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -14,9 +14,7 @@ export function MobileNav() {
   const role = session?.user?.role ?? "";
 
   const visibleItems = moduleNavItems(moduleId, role);
-  const activeItem = visibleItems.find(
-    (item) => pathname === item.href || pathname.startsWith(item.href + "/")
-  );
+  const activeItem = visibleItems.find((item) => isNavItemActive(pathname, item));
   const topItems = visibleItems.slice(0, 5);
   const itemsToRender =
     activeItem && !topItems.some((item) => item.href === activeItem.href)
@@ -28,7 +26,7 @@ export function MobileNav() {
       <div className="flex items-center justify-around px-2 py-1">
         {itemsToRender.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          const isActive = isNavItemActive(pathname, item);
 
           return (
             <Link

@@ -30,7 +30,6 @@ export async function POST(req: NextRequest) {
   const firstName = typeof body?.firstName === "string" ? body.firstName.trim() : "";
   const lastName = typeof body?.lastName === "string" ? body.lastName.trim() : "";
   const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
-  const diploma = typeof body?.diploma === "string" ? body.diploma.trim() : "";
   const photo = typeof body?.photo === "string" ? body.photo.trim() : "";
   const paymentMode = body?.paymentMode;
   const jobTitle = body?.jobTitle;
@@ -49,7 +48,6 @@ export async function POST(req: NextRequest) {
     firstName,
     lastName,
     phone,
-    diploma: diploma || undefined,
     photo: photo || undefined,
     paymentMode,
     jobTitle: jobTitle || undefined,

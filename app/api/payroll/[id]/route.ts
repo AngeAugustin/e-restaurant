@@ -7,15 +7,17 @@ import { parsePayrollBonuses, payrollBonusTotal } from "@/lib/payroll";
 import { resolvePayrollBaseSalary } from "@/lib/payroll-server";
 import Payroll from "@/models/Payroll";
 import "@/models/Waitress";
+import "@/models/KitchenWaitress";
 import "@/models/Cook";
 import "@/models/User";
 import "@/models/JobTitle";
 
-const TYPES = new Set(["WAITRESS", "COOK", "MANAGER"]);
+const TYPES = new Set(["WAITRESS", "KITCHEN_WAITRESS", "COOK", "MANAGER"]);
 
 async function loadPopulated(id: string) {
   return Payroll.findById(id)
     .populate("waitress", "firstName lastName")
+    .populate("kitchenWaitress", "firstName lastName")
     .populate("cook", "firstName lastName")
     .populate("user", "firstName lastName role")
     .populate("jobTitle", "name salary")
@@ -43,6 +45,36 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json();
   const payroll = await Payroll.findById(id);
   if (!payroll) return NextResponse.json({ error: "Fiche de paie introuvable" }, { status: 404 });
+
+  if (body?.action === "mark_paid") {
+    if (payroll.isPaid) {
+      return NextResponse.json({ error: "Cette fiche est déjà marquée comme payée" }, { status: 400 });
+    }
+
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Fiche de paie introuvable" }, { status: 404 });
+    }
+
+    const updateResult = await Payroll.collection.updateOne(
+      { _id: new Types.ObjectId(id) },
+      { $set: { isPaid: true } }
+    );
+
+    if (updateResult.matchedCount === 0) {
+      return NextResponse.json({ error: "Fiche de paie introuvable" }, { status: 404 });
+    }
+
+    const fresh = await loadPopulated(id);
+    if (!fresh) return NextResponse.json({ error: "Fiche de paie introuvable" }, { status: 404 });
+    return NextResponse.json({ ...fresh, isPaid: true });
+  }
+
+  if (payroll.isPaid) {
+    return NextResponse.json(
+      { error: "Cette fiche est payée et ne peut plus être modifiée" },
+      { status: 400 }
+    );
+  }
 
   const beneficiaryType = body?.beneficiaryType;
   if (!TYPES.has(beneficiaryType)) {
@@ -92,9 +124,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   payroll.attachmentUrl = typeof body?.attachmentUrl === "string" ? body.attachmentUrl.trim() : undefined;
   payroll.jobTitle = body?.jobTitle || undefined;
   payroll.waitress = undefined;
+  payroll.kitchenWaitress = undefined;
   payroll.cook = undefined;
   payroll.user = undefined;
   if (beneficiaryType === "WAITRESS") payroll.waitress = new Types.ObjectId(body.personId);
+  else if (beneficiaryType === "KITCHEN_WAITRESS") payroll.kitchenWaitress = new Types.ObjectId(body.personId);
   else if (beneficiaryType === "COOK") payroll.cook = new Types.ObjectId(body.personId);
   else payroll.user = new Types.ObjectId(body.personId);
 

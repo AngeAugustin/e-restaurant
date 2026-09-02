@@ -7,6 +7,7 @@ import { MobileNav } from "@/components/shared/MobileNav";
 import { SidebarLayoutProvider, useSidebarLayout } from "@/components/shared/sidebar-layout-context";
 import { AppModuleProvider } from "@/components/shared/app-module-context";
 import { AppModuleHeader } from "@/components/shared/AppModuleHeader";
+import { RouteAccessGuard } from "@/components/shared/RouteAccessGuard";
 
 function MainArea({ children }: { children: ReactNode }) {
   const { collapsed, hydrated } = useSidebarLayout();
@@ -28,7 +29,7 @@ function MainArea({ children }: { children: ReactNode }) {
             : "lg:mx-auto lg:px-8"
         )}
       >
-        {children}
+        <RouteAccessGuard>{children}</RouteAccessGuard>
       </div>
     </main>
   );

@@ -1,9 +1,10 @@
 import type { PayrollBeneficiaryType } from "@/types";
 
-export const PAYROLL_TYPES: PayrollBeneficiaryType[] = ["WAITRESS", "COOK", "MANAGER"];
+export const PAYROLL_TYPES: PayrollBeneficiaryType[] = ["WAITRESS", "KITCHEN_WAITRESS", "COOK", "MANAGER"];
 
 export const PAYROLL_TYPE_LABEL: Record<PayrollBeneficiaryType, string> = {
   WAITRESS: "Serveuse",
+  KITCHEN_WAITRESS: "Serveuse-cuisinière",
   COOK: "Cuisinière",
   MANAGER: "Gérant(e)",
 };

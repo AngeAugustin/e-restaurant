@@ -9,8 +9,13 @@ export async function GET() {
   if (error) return error;
 
   await connectDB();
-  const users = await User.find().select("-password").sort({ createdAt: -1 });
-  return NextResponse.json(users);
+  const users = await User.find().select("-password").sort({ createdAt: -1 }).lean();
+  return NextResponse.json(
+    users.map((u) => ({
+      ...u,
+      isActive: u.isActive !== false,
+    }))
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -40,6 +45,7 @@ export async function POST(req: NextRequest) {
     phone: phone || "",
     address: address || "",
     role,
+    isActive: true,
   });
 
   const { password: _, ...userWithoutPassword } = user.toObject();

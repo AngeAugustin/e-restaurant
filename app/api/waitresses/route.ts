@@ -4,13 +4,24 @@ import { requireAuth } from "@/lib/auth-middleware";
 import Waitress from "@/models/Waitress";
 import "@/models/JobTitle";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const { error } = await requireAuth();
   if (error) return error;
 
   await connectDB();
-  const waitresses = await Waitress.find().populate("jobTitle", "name salary").sort({ firstName: 1 });
-  return NextResponse.json(waitresses);
+  const activeOnly = req.nextUrl.searchParams.get("activeOnly") === "1";
+  const filter = activeOnly ? { isActive: { $ne: false } } : {};
+  const waitresses = await Waitress.find(filter)
+    .populate("jobTitle", "name salary")
+    .sort({ firstName: 1 })
+    .lean();
+
+  return NextResponse.json(
+    waitresses.map((w) => ({
+      ...w,
+      isActive: w.isActive !== false,
+    }))
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -34,6 +45,7 @@ export async function POST(req: NextRequest) {
     phone: phone != null && String(phone).trim() !== "" ? String(phone).trim() : undefined,
     paymentMode,
     jobTitle: jobTitle || undefined,
+    isActive: true,
   });
   return NextResponse.json(waitress, { status: 201 });
 }

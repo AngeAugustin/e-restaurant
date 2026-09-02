@@ -29,7 +29,8 @@ import type { IWaitress } from "@/types";
 async function fetchWaitresses(): Promise<IWaitress[]> {
   const res = await fetch("/api/waitresses");
   if (!res.ok) throw new Error("fetch");
-  return res.json();
+  const data = (await res.json()) as IWaitress[];
+  return data.map((w) => ({ ...w, isActive: w.isActive !== false }));
 }
 
 function WaitressDialog({
@@ -156,6 +157,10 @@ export default function WaitressesPage() {
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [edit, setEdit] = useState<IWaitress | undefined>();
   const [waitressPendingDelete, setWaitressPendingDelete] = useState<IWaitress | null>(null);
+  const [waitressToggleConfirm, setWaitressToggleConfirm] = useState<{
+    waitress: IWaitress;
+    nextActive: boolean;
+  } | null>(null);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -166,6 +171,39 @@ export default function WaitressesPage() {
       toast({ variant: "success", title: "Serveuse supprimée" });
       qc.invalidateQueries({ queryKey: ["waitresses"] });
       setWaitressPendingDelete(null);
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: err.message });
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, nextActive }: { id: string; nextActive: boolean }) => {
+      const res = await fetch(`/api/waitresses/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: nextActive ? "activate" : "deactivate" }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof body.error === "string" ? body.error : "Mise à jour impossible");
+      }
+      return body as IWaitress;
+    },
+    onSuccess: (_, { id, nextActive }) => {
+      setWaitressToggleConfirm(null);
+      qc.setQueryData<IWaitress[]>(["waitresses"], (old) =>
+        old?.map((w) =>
+          String(w._id) === String(id) ? { ...w, isActive: nextActive } : w
+        ) ?? old
+      );
+      toast({
+        variant: "success",
+        title: nextActive ? "Serveuse réactivée" : "Serveuse désactivée",
+        description: nextActive
+          ? "Elle est de nouveau disponible pour les ventes."
+          : "Elle n’apparaîtra plus dans les nouvelles ventes.",
+      });
     },
     onError: (err: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: err.message });
@@ -253,7 +291,7 @@ export default function WaitressesPage() {
           }
           skeletonRows={6}
           tableMinWidthClass="min-w-[720px]"
-          skeletonColSpan={4}
+          skeletonColSpan={5}
         >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] border-collapse text-left text-sm">
@@ -262,6 +300,7 @@ export default function WaitressesPage() {
                   <th className="whitespace-nowrap px-6 py-3.5 font-semibold">Serveuse</th>
                   <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Téléphone</th>
                   <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Inscription</th>
+                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Statut</th>
                   <th className="whitespace-nowrap px-6 py-3.5 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -301,8 +340,34 @@ export default function WaitressesPage() {
                         {formatDate(w.createdAt)}
                       </span>
                     </td>
+                    <td className="px-4 py-4">
+                      {w.isActive ? (
+                        <span className="inline-flex rounded-full border border-emerald-200/50 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-900/90">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full border border-slate-200/80 bg-slate-500/10 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                          Désactivée
+                        </span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center justify-end gap-1 opacity-90 transition group-hover:opacity-100">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-9 rounded-xl border-slate-200/80 bg-white/80 text-xs shadow-sm backdrop-blur-sm"
+                          disabled={toggleMutation.isPending}
+                          onClick={() =>
+                            setWaitressToggleConfirm({
+                              waitress: w,
+                              nextActive: !w.isActive,
+                            })
+                          }
+                        >
+                          {w.isActive ? "Désactiver" : "Activer"}
+                        </Button>
                         <Button
                           type="button"
                           variant="outline"
@@ -357,6 +422,71 @@ export default function WaitressesPage() {
       <WaitressDialog open={dialogOpen} onClose={() => setDialogOpen(false)} waitress={edit} />
 
       <Dialog
+        open={!!waitressToggleConfirm}
+        onOpenChange={(open) => {
+          if (!open && !toggleMutation.isPending) setWaitressToggleConfirm(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {waitressToggleConfirm?.nextActive ? "Réactiver la serveuse" : "Désactiver la serveuse"}
+            </DialogTitle>
+            <DialogDescription>
+              {waitressToggleConfirm ? (
+                waitressToggleConfirm.nextActive ? (
+                  <>
+                    Voulez-vous réactiver{" "}
+                    <span className="font-medium text-[#0D0D0D]">
+                      {waitressToggleConfirm.waitress.firstName} {waitressToggleConfirm.waitress.lastName}
+                    </span>
+                    ? Elle sera à nouveau proposée lors des nouvelles ventes.
+                  </>
+                ) : (
+                  <>
+                    Voulez-vous désactiver{" "}
+                    <span className="font-medium text-[#0D0D0D]">
+                      {waitressToggleConfirm.waitress.firstName} {waitressToggleConfirm.waitress.lastName}
+                    </span>
+                    ? Elle ne sera plus proposée lors des nouvelles ventes. Vous pourrez la réactiver à tout
+                    moment.
+                  </>
+                )
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={toggleMutation.isPending}
+              onClick={() => setWaitressToggleConfirm(null)}
+            >
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              variant={waitressToggleConfirm?.nextActive ? "default" : "destructive"}
+              disabled={toggleMutation.isPending || !waitressToggleConfirm}
+              onClick={() => {
+                if (!waitressToggleConfirm) return;
+                toggleMutation.mutate({
+                  id: waitressToggleConfirm.waitress._id,
+                  nextActive: waitressToggleConfirm.nextActive,
+                });
+              }}
+            >
+              {toggleMutation.isPending
+                ? "Mise à jour…"
+                : waitressToggleConfirm?.nextActive
+                  ? "Réactiver"
+                  : "Désactiver"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
         open={!!waitressPendingDelete}
         onOpenChange={(open) => !open && !deleteMutation.isPending && setWaitressPendingDelete(null)}
       >
@@ -370,8 +500,8 @@ export default function WaitressesPage() {
                   <span className="font-medium text-[#0D0D0D]">
                     {waitressPendingDelete.firstName} {waitressPendingDelete.lastName}
                   </span>
-                  . Cette action est irréversible. Si des ventes sont liées à cette serveuse, la suppression sera
-                  refusée.
+                  . Cette action est irréversible. Si des ventes sont liées à cette serveuse, désactivez-la
+                  plutôt ou la suppression sera refusée.
                 </>
               )}
             </DialogDescription>

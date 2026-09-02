@@ -6,12 +6,15 @@ import { DIRECTION_ROLES, OPERATIONS_ROLES } from "@/lib/roles";
 import KitchenOrder from "@/models/KitchenOrder";
 import Menu from "@/models/Menu";
 import Cook from "@/models/Cook";
+import KitchenWaitress from "@/models/KitchenWaitress";
+import { resolveDefaultKitchenCookId } from "@/lib/kitchen-staff";
 import "@/models/KitchenPlate";
 import "@/models/User";
 
 async function loadPopulated(id: string) {
   return KitchenOrder.findById(id)
     .populate("cook", "firstName lastName photo")
+    .populate("kitchenWaitress", "firstName lastName phone")
     .populate("plate", "number")
     .populate("items.menu", "name image price")
     .populate("createdBy", "firstName lastName")
@@ -82,11 +85,37 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json(fresh);
   }
 
-  const { cookId, plateId, items } = body as {
-    cookId?: string;
+  const { kitchenWaitressId, plateId, items } = body as {
+    kitchenWaitressId?: string;
     plateId?: string;
     items?: Array<{ menuId: string; quantity: number }>;
   };
+
+  if (kitchenWaitressId) {
+    const kitchenWaitress = await KitchenWaitress.findById(kitchenWaitressId)
+      .select("isActive")
+      .lean<{ isActive?: boolean } | null>();
+    if (!kitchenWaitress || kitchenWaitress.isActive === false) {
+      return NextResponse.json(
+        { error: "Serveuse-cuisinière introuvable ou désactivée" },
+        { status: 400 }
+      );
+    }
+    order.kitchenWaitress = new Types.ObjectId(kitchenWaitressId);
+  }
+
+  const defaultCookId = await resolveDefaultKitchenCookId();
+  if (!defaultCookId) {
+    return NextResponse.json(
+      { error: "Aucune cuisinière active enregistrée. Ajoutez une cuisinière dans l'équipe cuisine." },
+      { status: 400 }
+    );
+  }
+  const defaultCook = await Cook.findById(defaultCookId).select("isActive").lean<{ isActive?: boolean } | null>();
+  if (!defaultCook || defaultCook.isActive === false) {
+    return NextResponse.json({ error: "Cuisinière introuvable ou désactivée" }, { status: 400 });
+  }
+  order.cook = new Types.ObjectId(defaultCookId);
 
   if (plateId) {
     const conflict = await KitchenOrder.findOne({
@@ -101,14 +130,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
     order.plate = new Types.ObjectId(plateId);
-  }
-
-  if (cookId) {
-    const cook = await Cook.findById(cookId).select("isActive").lean<{ isActive?: boolean } | null>();
-    if (!cook || cook.isActive === false) {
-      return NextResponse.json({ error: "Cuisinière introuvable ou désactivée" }, { status: 400 });
-    }
-    order.cook = new Types.ObjectId(cookId);
   }
 
   if (items && items.length > 0) {

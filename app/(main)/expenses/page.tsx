@@ -21,8 +21,6 @@ export default function ExpensesPage() {
   const qc = useQueryClient();
   const can = ["directeur", "directrice", "gerant"].includes(session?.user?.role ?? "");
   const canDelete = ["directeur", "directrice"].includes(session?.user?.role ?? "");
-  const isDirector = session?.user?.role === "directeur";
-  const [tab, setTab] = useState<"list" | "cats" | "methods">("list");
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<IExpense | undefined>();
   const [form, setForm] = useState({ label: "", category: "", amount: "", date: "", paymentMethod: "", comment: "" });
@@ -89,9 +87,6 @@ export default function ExpensesPage() {
     onError: (e: Error) => toast({ variant: "destructive", title: "Erreur", description: e.message }),
   });
 
-  const [newCat, setNewCat] = useState("");
-  const [newMethod, setNewMethod] = useState("");
-
   if (status === "loading") return <Skeleton className="h-96" />;
   if (!can) return <p className="py-20 text-center text-[#9CA3AF]">Accès refusé.</p>;
 
@@ -100,7 +95,7 @@ export default function ExpensesPage() {
       <PageHeader
         title="Dépenses"
         subtitle="Sorties générales (électricité, entretien, etc.)"
-        action={tab === "list" ? <Button onClick={() => openForm()}><Plus className="h-4 w-4" />Nouvelle dépense</Button> : undefined}
+        action={<Button onClick={() => openForm()}><Plus className="h-4 w-4" />Nouvelle dépense</Button>}
       />
 
       <div className="mb-8 max-w-xs">
@@ -109,88 +104,35 @@ export default function ExpensesPage() {
         )}
       </div>
 
-      <div className="mb-4 flex gap-2">
-        <Button size="sm" variant={tab === "list" ? "default" : "outline"} onClick={() => setTab("list")}>Dépenses</Button>
-        <Button size="sm" variant={tab === "cats" ? "default" : "outline"} onClick={() => setTab("cats")}>Catégories</Button>
-        <Button size="sm" variant={tab === "methods" ? "default" : "outline"} onClick={() => setTab("methods")}>Modes de paiement</Button>
-      </div>
-
-      {tab === "list" && (
-        <div className="overflow-x-auto rounded-xl border">
-          <table className="w-full min-w-[800px] text-sm">
-            <thead>
-              <tr className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Libellé</th>
-                <th className="px-4 py-3">Catégorie</th>
-                <th className="px-4 py-3">Paiement</th>
-                <th className="px-4 py-3 text-right">Montant</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+      <div className="overflow-x-auto rounded-xl border">
+        <table className="w-full min-w-[800px] text-sm">
+          <thead>
+            <tr className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">Libellé</th>
+              <th className="px-4 py-3">Catégorie</th>
+              <th className="px-4 py-3">Paiement</th>
+              <th className="px-4 py-3 text-right">Montant</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(expensesData?.items ?? []).map((e) => (
+              <tr key={e._id} className="border-b">
+                <td className="px-4 py-3 text-xs">{formatDate(e.date)}</td>
+                <td className="px-4 py-3 font-medium">{e.label}</td>
+                <td className="px-4 py-3">{typeof e.category === "object" ? e.category.name : "—"}</td>
+                <td className="px-4 py-3">{typeof e.paymentMethod === "object" ? e.paymentMethod.name : "—"}</td>
+                <td className="px-4 py-3 text-right font-semibold">{formatCurrency(e.amount)}</td>
+                <td className="px-4 py-3 text-right space-x-1">
+                  <Button size="icon" variant="outline" onClick={() => openForm(e)}><Pencil className="h-4 w-4" /></Button>
+                  {canDelete && <Button size="icon" variant="outline" className="text-rose-600" onClick={() => del.mutate(e._id)}><Trash2 className="h-4 w-4" /></Button>}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {(expensesData?.items ?? []).map((e) => (
-                <tr key={e._id} className="border-b">
-                  <td className="px-4 py-3 text-xs">{formatDate(e.date)}</td>
-                  <td className="px-4 py-3 font-medium">{e.label}</td>
-                  <td className="px-4 py-3">{typeof e.category === "object" ? e.category.name : "—"}</td>
-                  <td className="px-4 py-3">{typeof e.paymentMethod === "object" ? e.paymentMethod.name : "—"}</td>
-                  <td className="px-4 py-3 text-right font-semibold">{formatCurrency(e.amount)}</td>
-                  <td className="px-4 py-3 text-right space-x-1">
-                    <Button size="icon" variant="outline" onClick={() => openForm(e)}><Pencil className="h-4 w-4" /></Button>
-                    {canDelete && <Button size="icon" variant="outline" className="text-rose-600" onClick={() => del.mutate(e._id)}><Trash2 className="h-4 w-4" /></Button>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {tab === "cats" && (
-        <div className="max-w-lg space-y-3">
-          <form className="flex gap-2" onSubmit={async (e) => {
-            e.preventDefault();
-            const res = await fetch("/api/expense-categories", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newCat }) });
-            if (!res.ok) toast({ variant: "destructive", title: "Erreur", description: (await res.json()).error });
-            else { setNewCat(""); qc.invalidateQueries({ queryKey: ["expense-categories"] }); }
-          }}>
-            <Input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="Nouvelle catégorie" required />
-            <Button type="submit">Ajouter</Button>
-          </form>
-          <ul className="divide-y rounded-xl border">
-            {(categories ?? []).map((c) => (
-              <li key={c._id} className="flex items-center justify-between px-4 py-2 text-sm">
-                {c.name}
-                {isDirector && <Button size="sm" variant="outline" className="text-rose-600" onClick={async () => {
-                  const res = await fetch(`/api/expense-categories/${c._id}`, { method: "DELETE" });
-                  if (!res.ok) toast({ variant: "destructive", title: "Erreur", description: (await res.json()).error });
-                  else qc.invalidateQueries({ queryKey: ["expense-categories"] });
-                }}>Supprimer</Button>}
-              </li>
             ))}
-          </ul>
-        </div>
-      )}
-
-      {tab === "methods" && (
-        <div className="max-w-lg space-y-3">
-          <form className="flex gap-2" onSubmit={async (e) => {
-            e.preventDefault();
-            const res = await fetch("/api/expense-payment-methods", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newMethod }) });
-            if (!res.ok) toast({ variant: "destructive", title: "Erreur", description: (await res.json()).error });
-            else { setNewMethod(""); qc.invalidateQueries({ queryKey: ["expense-payment-methods"] }); }
-          }}>
-            <Input value={newMethod} onChange={(e) => setNewMethod(e.target.value)} placeholder="Nouveau mode" required />
-            <Button type="submit">Ajouter</Button>
-          </form>
-          <ul className="divide-y rounded-xl border">
-            {(methods ?? []).map((m) => (
-              <li key={m._id} className="flex items-center justify-between px-4 py-2 text-sm">{m.name}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+          </tbody>
+        </table>
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">

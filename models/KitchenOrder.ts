@@ -9,6 +9,7 @@ export interface IKitchenOrderItemDocument {
 
 export interface IKitchenOrderDocument extends Document {
   cook: Types.ObjectId;
+  kitchenWaitress?: Types.ObjectId;
   plate: Types.ObjectId;
   items: IKitchenOrderItemDocument[];
   totalAmount: number;
@@ -53,6 +54,10 @@ const KitchenOrderSchema = new Schema<IKitchenOrderDocument>(
       type: Schema.Types.ObjectId,
       ref: "Cook",
       required: [true, "La cuisinière est requise"],
+    },
+    kitchenWaitress: {
+      type: Schema.Types.ObjectId,
+      ref: "KitchenWaitress",
     },
     plate: {
       type: Schema.Types.ObjectId,
@@ -104,8 +109,17 @@ const KitchenOrderSchema = new Schema<IKitchenOrderDocument>(
 KitchenOrderSchema.index({ status: 1, createdAt: -1 });
 KitchenOrderSchema.index({ plate: 1, status: 1 });
 
+KitchenOrderSchema.index({ kitchenWaitress: 1, createdAt: -1 });
+
+const existingKitchenOrder = mongoose.models.KitchenOrder as Model<IKitchenOrderDocument> | undefined;
+if (existingKitchenOrder && !existingKitchenOrder.schema.path("kitchenWaitress")) {
+  existingKitchenOrder.schema.add({
+    kitchenWaitress: { type: Schema.Types.ObjectId, ref: "KitchenWaitress" },
+  });
+}
+
 const KitchenOrder: Model<IKitchenOrderDocument> =
-  (mongoose.models.KitchenOrder as Model<IKitchenOrderDocument> | undefined) ||
+  existingKitchenOrder ||
   mongoose.model<IKitchenOrderDocument>("KitchenOrder", KitchenOrderSchema);
 
 export default KitchenOrder;

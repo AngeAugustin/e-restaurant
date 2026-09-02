@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Phone } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PaginationControls } from "@/components/shared/PaginationControls";
@@ -49,7 +48,6 @@ export default function CookDetailPage() {
           <div>
             <h1 className="text-2xl font-semibold">{cook.firstName} {cook.lastName}</h1>
             <p className="mt-1 flex items-center gap-1 text-sm text-[#6B7280]"><Phone className="h-4 w-4" />{cook.phone}</p>
-            {cook.diploma && <Badge variant="secondary" className="mt-2">{cook.diploma}</Badge>}
             <p className="mt-2 text-sm">CA clôturé : {formatCurrency(revenue)}</p>
           </div>
         </div>

@@ -6,6 +6,7 @@ export interface IWaitressDocument extends Document {
   phone?: string;
   paymentMode?: "CASH" | "MOBILE_MONEY";
   jobTitle?: Types.ObjectId;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,26 +35,23 @@ const WaitressSchema = new Schema<IWaitressDocument>(
       type: Schema.Types.ObjectId,
       ref: "JobTitle",
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );
 
-const existingModel = mongoose.models.Waitress as Model<IWaitressDocument> | undefined;
+const MODEL_NAME = "Waitress";
 
-if (existingModel) {
-  if (!existingModel.schema.path("paymentMode")) {
-    existingModel.schema.add({
-      paymentMode: { type: String, enum: ["CASH", "MOBILE_MONEY"] },
-    });
-  }
-  if (!existingModel.schema.path("jobTitle")) {
-    existingModel.schema.add({
-      jobTitle: { type: Schema.Types.ObjectId, ref: "JobTitle" },
-    });
-  }
+// Recompile le modèle si le schéma a évolué (hot reload Next.js)
+if (mongoose.models[MODEL_NAME] && !mongoose.models[MODEL_NAME].schema.path("isActive")) {
+  delete mongoose.models[MODEL_NAME];
 }
 
 const Waitress: Model<IWaitressDocument> =
-  existingModel || mongoose.model<IWaitressDocument>("Waitress", WaitressSchema);
+  (mongoose.models[MODEL_NAME] as Model<IWaitressDocument> | undefined) ||
+  mongoose.model<IWaitressDocument>(MODEL_NAME, WaitressSchema);
 
 export default Waitress;

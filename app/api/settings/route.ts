@@ -16,6 +16,8 @@ import {
   normalizeSolutionName,
   normalizeEmailList,
   normalizeDiplomaList,
+  normalizeFontSizeScale,
+  isAllowedFontSizeScale,
 } from "@/lib/app-settings";
 
 function toClientPayload(doc: {
@@ -25,6 +27,7 @@ function toClientPayload(doc: {
   lowStockAlertEmails?: unknown;
   lowStockAlertThreshold?: unknown;
   cookDiplomas?: unknown;
+  fontSizeScale?: unknown;
 }) {
   const safeLogoUrl =
     typeof doc.logoUrl === "string" && isAllowedLogoUrl(doc.logoUrl) ? doc.logoUrl : DEFAULT_LOGO_URL;
@@ -40,6 +43,7 @@ function toClientPayload(doc: {
     lowStockAlertEmails: normalizeEmailList(doc.lowStockAlertEmails),
     lowStockAlertThreshold: normalizeLowStockAlertThreshold(doc.lowStockAlertThreshold),
     cookDiplomas: normalizeDiplomaList(doc.cookDiplomas),
+    fontSizeScale: normalizeFontSizeScale(doc.fontSizeScale),
   };
 }
 
@@ -63,6 +67,7 @@ export async function PUT(req: NextRequest) {
     lowStockAlertEmails?: unknown;
     lowStockAlertThreshold?: unknown;
     cookDiplomas?: unknown;
+    fontSizeScale?: unknown;
   };
   const updates: Record<string, string | string[] | number> = {};
 
@@ -71,6 +76,14 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Couleur principale invalide" }, { status: 400 });
     }
     updates.primaryColor = normalizeHexColor(body.primaryColor) ?? DEFAULT_PRIMARY_COLOR;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "fontSizeScale")) {
+    const scale = normalizeFontSizeScale(body.fontSizeScale);
+    if (!isAllowedFontSizeScale(scale)) {
+      return NextResponse.json({ error: "Échelle de taille de police invalide" }, { status: 400 });
+    }
+    updates.fontSizeScale = scale;
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "lowStockAlertEmails")) {
@@ -148,7 +161,10 @@ export async function PUT(req: NextRequest) {
     { new: true, upsert: true, strict: false }
   ).lean();
 
-  if (Object.prototype.hasOwnProperty.call(updates, "primaryColor")) {
+  if (
+    Object.prototype.hasOwnProperty.call(updates, "primaryColor") ||
+    Object.prototype.hasOwnProperty.call(updates, "fontSizeScale")
+  ) {
     revalidateTag(PRIMARY_THEME_CACHE_TAG);
   }
 
