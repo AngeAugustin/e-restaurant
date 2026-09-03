@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, ShoppingCart, TrendingUp, Clock, CheckCircle2, Eye, Pencil } from "lucide-react";
+import { Plus, ShoppingCart, TrendingUp, Clock, CheckCircle2, Eye, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { StatsCard } from "@/components/shared/StatsCard";
@@ -212,42 +212,42 @@ export default function SalesPage() {
                         <td className="px-6 py-4 text-right">
                           <div className="flex flex-wrap items-center justify-end gap-1.5 opacity-95 transition group-hover:opacity-100">
                             <Button
-                              size="sm"
+                              size="icon"
                               variant="outline"
-                              className="rounded-xl border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-sm hover:border-violet-200 hover:bg-violet-500/8"
+                              className="h-9 w-9 rounded-xl border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-sm hover:border-violet-200 hover:bg-violet-500/8"
                               asChild
                             >
-                              <Link href={`/sales/${sale._id}`}>
-                                <Eye className="w-3.5 h-3.5 sm:mr-1" />
-                                <span className="hidden sm:inline">Détails</span>
+                              <Link href={`/sales/${sale._id}`} title="Détails" aria-label="Voir les détails">
+                                <Eye className="h-4 w-4" />
                               </Link>
                             </Button>
                             {sale.status === "PENDING" && (
                               <>
                                 <Button
-                                  size="sm"
+                                  size="icon"
                                   variant="outline"
-                                  className="rounded-xl border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-sm hover:border-violet-200 hover:bg-violet-500/8"
+                                  className="h-9 w-9 rounded-xl border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-sm hover:border-violet-200 hover:bg-violet-500/8"
                                   asChild
                                 >
-                                  <Link href={`/sales/${sale._id}/edit`}>
-                                    <Pencil className="w-3.5 h-3.5 sm:mr-1" />
-                                    <span className="hidden sm:inline">Modifier</span>
+                                  <Link href={`/sales/${sale._id}/edit`} title="Modifier" aria-label="Modifier la vente">
+                                    <Pencil className="h-4 w-4" />
                                   </Link>
-                                </Button>
-                                <Button size="sm" className="rounded-xl shadow-sm" onClick={() => setSaleToClose(sale)}>
-                                  Clôturer
                                 </Button>
                                 {canCancelSale ? (
                                   <Button
-                                    size="sm"
+                                    size="icon"
                                     variant="outline"
-                                    className="rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm backdrop-blur-sm hover:border-rose-300 hover:bg-rose-500/12"
+                                    className="h-9 w-9 rounded-xl border-rose-200/60 bg-rose-500/[0.06] text-rose-600 shadow-sm backdrop-blur-sm hover:border-rose-300 hover:bg-rose-500/12"
+                                    title="Annuler"
+                                    aria-label="Annuler la vente"
                                     onClick={() => setSaleToCancel(sale)}
                                   >
-                                    Annuler
+                                    <Trash2 className="h-4 w-4" />
                                   </Button>
                                 ) : null}
+                                <Button size="sm" className="rounded-xl shadow-sm" onClick={() => setSaleToClose(sale)}>
+                                  Clôturer
+                                </Button>
                               </>
                             )}
                             {sale.status === "COMPLETED" && sale.change !== undefined && (

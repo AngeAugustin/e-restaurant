@@ -73,7 +73,7 @@ export const COMMON_INTRO: GuideSection = {
       paragraphs: [
         "Directeur : accès complet sur tous les modules, y compris la suppression définitive des données sensibles (produits, utilisateurs, tables, fiches de paie, etc.).",
         "Directrice : gestion opérationnelle et pilotage sur l'ensemble des modules ; certaines suppressions sont réservées au directeur.",
-        "Gérant : exploitation terrain — bar (approvisionnements, ventes, caisse bar), cuisine (commandes et caisse cuisine), comptabilité (situation financière en consultation et dépenses). Pas d'accès au catalogue produits, aux référentiels cuisine (menus, cuisinières, plaquettes), à la paie des salaires, aux analytiques, aux utilisateurs ni aux paramètres.",
+        "Gérant : exploitation terrain — bar (approvisionnements, ventes, caisse bar), cuisine (commandes, caisse cuisine, menus). Pas d'accès au catalogue produits, aux autres référentiels cuisine (cuisinières, serveuses-cuisinières, plaquettes), à la comptabilité, à la paie, aux analytiques, aux utilisateurs ni aux paramètres.",
       ],
     },
   ],
@@ -110,12 +110,12 @@ export const ROLE_META: Record<UserRole, RoleGuideMeta> = {
     role: "gerant",
     label: "Gérant",
     shortDescription:
-      "Exploitation terrain : bar (approvisionnements, ventes, caisse) et cuisine (commandes et caisse cuisine).",
+      "Exploitation terrain : bar (approvisionnements, ventes, caisse) et cuisine (commandes, caisse cuisine, menus).",
     accessSummary: [
       "Module Bar : tableau de bord, approvisionnements, ventes, caisse bar",
-      "Module Cuisine : commandes cuisine, caisse cuisine",
+      "Module Cuisine : commandes cuisine, caisse cuisine, menus",
       "Mon profil (avatar dans le menu latéral)",
-      "Pas d'accès : produits, serveuses, tables, analytiques, menus, cuisinières, serveuses-cuisinières, plaquettes, comptabilité, paie, dépenses, administration (utilisateurs, paramètres, guide)",
+      "Pas d'accès : produits, serveuses, tables, analytiques, cuisinières, serveuses-cuisinières, plaquettes, comptabilité, paie, dépenses, administration (utilisateurs, paramètres, guide)",
     ],
   },
 };
@@ -865,6 +865,7 @@ export const ROLE_GUIDES: Record<UserRole, GuideSection[]> = {
     cashSection,
     kitchenOrdersSection,
     kitchenCashSection,
+    menusSection,
     profileSection,
     {
       id: "workflow",

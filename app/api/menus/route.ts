@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
-import { DIRECTION_ROLES } from "@/lib/roles";
+import { OPERATIONS_ROLES } from "@/lib/roles";
 import { isAllowedProductImageUrl } from "@/lib/media-urls";
 import Menu from "@/models/Menu";
 
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAuth([...DIRECTION_ROLES]);
+  const { error } = await requireAuth([...OPERATIONS_ROLES]);
   if (error) return error;
 
   try {

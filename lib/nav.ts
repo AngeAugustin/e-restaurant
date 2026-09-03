@@ -52,7 +52,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
 
   { href: "/kitchen", label: "Commandes", mobileLabel: "Cuisine", icon: CookingPot, roles: ["directeur", "directrice", "gerant"], module: "cuisine" },
   { href: "/kitchen-cash", label: "Caisse cuisine", icon: CircleDollarSign, roles: ["directeur", "directrice", "gerant"], module: "cuisine" },
-  { href: "/menus", label: "Menus", icon: UtensilsCrossed, roles: ["directeur", "directrice"], module: "cuisine" },
+  { href: "/menus", label: "Menus", icon: UtensilsCrossed, roles: ["directeur", "directrice", "gerant"], module: "cuisine" },
   { href: "/cooks", label: "Cuisinières", icon: ChefHat, roles: ["directeur", "directrice"], module: "cuisine" },
   { href: "/kitchen-waitresses", label: "Serveuses-Cuisinières", icon: UserRound, roles: ["directeur", "directrice"], module: "cuisine" },
   { href: "/kitchen-plates", label: "Plaquettes", icon: CreditCard, roles: ["directeur", "directrice"], module: "cuisine" },

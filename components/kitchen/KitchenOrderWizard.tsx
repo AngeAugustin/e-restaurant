@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -15,8 +15,10 @@ import {
   UtensilsCrossed,
   Receipt,
   ShoppingCart,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
@@ -62,6 +64,7 @@ export default function KitchenOrderWizard({
   const [kitchenWaitressId, setKitchenWaitressId] = useState("");
   const [plateId, setPlateId] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [menuSearch, setMenuSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -82,6 +85,12 @@ export default function KitchenOrderWizard({
     queryKey: ["menus", { activeOnly: true }],
     queryFn: async () => (await fetch("/api/menus?activeOnly=1")).json(),
   });
+
+  const filteredMenus = useMemo(() => {
+    const q = menuSearch.trim().toLowerCase();
+    if (!q) return menus ?? [];
+    return (menus ?? []).filter((menu) => menu.name.toLowerCase().includes(q));
+  }, [menus, menuSearch]);
 
   const { data: kitchenWaitresses } = useQuery<IKitchenWaitress[]>({
     queryKey: ["kitchen-waitresses", { activeOnly: true }],
@@ -340,10 +349,39 @@ export default function KitchenOrderWizard({
         {step === 1 && (
           <div className="grid lg:grid-cols-12 gap-8 items-start">
             <div className="lg:col-span-7 space-y-4 order-2 lg:order-1">
-              <h2 className="text-lg font-semibold text-primary">Menus</h2>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-lg font-semibold text-primary shrink-0">Menus</h2>
+                <div className="relative w-full sm:max-w-xs">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                  <Input
+                    value={menuSearch}
+                    onChange={(e) => setMenuSearch(e.target.value)}
+                    placeholder="Rechercher un menu…"
+                    className={cn("pl-9", menuSearch && "pr-9")}
+                    disabled={wizardLocked}
+                  />
+                  {menuSearch ? (
+                    <button
+                      type="button"
+                      onClick={() => setMenuSearch("")}
+                      disabled={wizardLocked}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-[#9CA3AF] transition-colors hover:text-[#0D0D0D] disabled:pointer-events-none"
+                      aria-label="Vider la recherche"
+                      title="Vider"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
               <div className="max-h-[22rem] overflow-y-auto pr-1">
+                {filteredMenus.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-[#9CA3AF]">
+                    {menuSearch.trim() ? "Aucun menu ne correspond à la recherche." : "Aucun menu disponible."}
+                  </p>
+                ) : (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {(menus ?? []).map((menu) => {
+                  {filteredMenus.map((menu) => {
                     const inCart = cart.find((i) => i.menuId === menu._id);
                     return (
                       <button
@@ -376,6 +414,7 @@ export default function KitchenOrderWizard({
                     );
                   })}
                 </div>
+                )}
               </div>
             </div>
             <div className="lg:col-span-5 order-1 lg:order-2">
