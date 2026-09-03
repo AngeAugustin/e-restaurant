@@ -31,7 +31,7 @@ export function PremiumTableShell({
   children,
 }: PremiumTableShellProps) {
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-200/70 bg-white/70 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.25)] backdrop-blur-sm ring-1 ring-slate-950/[0.04]">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-3xl border border-slate-200/70 bg-white/70 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.25)] backdrop-blur-sm ring-1 ring-slate-950/[0.04]">
       <div className="relative border-b border-slate-200/60 bg-gradient-to-r from-violet-500/[0.06] via-slate-50/40 to-cyan-500/[0.05] px-6 py-5">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_120%_at_0%_0%,rgba(139,92,246,0.08),transparent_55%)]" />
         <div className="relative">
@@ -40,7 +40,7 @@ export function PremiumTableShell({
       </div>
 
       {isLoading ? (
-        <div className="overflow-x-auto">
+        <div className="min-w-0 max-w-full overflow-x-auto">
           <table className={`w-full border-collapse text-left text-sm ${tableMinWidthClass}`}>
             <tbody className="divide-y divide-slate-100/80">
               {Array.from({ length: skeletonRows }).map((_, i) => (
@@ -59,7 +59,7 @@ export function PremiumTableShell({
           {emptyAction ? <div className="mt-3">{emptyAction}</div> : null}
         </div>
       ) : (
-        children
+        <div className="min-w-0 max-w-full overflow-x-auto">{children}</div>
       )}
     </div>
   );

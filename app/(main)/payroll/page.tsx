@@ -240,7 +240,7 @@ export default function PayrollPage() {
       <div className="mb-6 max-w-xs">
         {isLoading ? <Skeleton className="h-28" /> : <StatsCard title="Total versé" value={formatCurrency(payrollData?.stats.totalAmount ?? 0)} icon={Wallet} index={0} />}
       </div>
-      <div className="overflow-x-auto rounded-xl border">
+      <div className="min-w-0 max-w-full overflow-x-auto rounded-xl border">
             <table className="w-full min-w-[800px] text-sm">
               <thead>
                 <tr className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">

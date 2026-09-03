@@ -264,7 +264,7 @@ export default function KitchenOrderWizard({
   const backHref = mode === "create" ? "/kitchen" : `/kitchen/${editOrderId}`;
 
   return (
-    <div className="min-h-[calc(100vh-6rem)] pb-8">
+    <div className="min-w-0 max-w-full min-h-[calc(100vh-6rem)] pb-8">
       <div className="mb-8">
         <Link
           href={backHref}
@@ -295,8 +295,8 @@ export default function KitchenOrderWizard({
         )}
       </div>
 
-      <div className="mb-10 w-full flex flex-col items-center">
-        <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-center sm:justify-center sm:gap-8 md:gap-12">
+      <div className="mb-10 min-w-0 max-w-full">
+        <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-center lg:justify-center lg:gap-3 xl:gap-8 2xl:gap-12">
           {STEPS.map((s, idx) => {
             const Icon = s.icon;
             const active = step === s.n;
@@ -307,7 +307,7 @@ export default function KitchenOrderWizard({
                 {idx > 0 && prevStep && (
                   <div
                     className={cn(
-                      "hidden sm:block h-0.5 w-16 md:w-24 shrink-0 rounded-full transition-colors",
+                      "hidden lg:block h-0.5 w-4 xl:w-12 2xl:w-20 shrink-0 rounded-full transition-colors",
                       step > prevStep.n ? "bg-primary" : "bg-[#E5E5E5]"
                     )}
                   />
@@ -323,18 +323,23 @@ export default function KitchenOrderWizard({
                   >
                     {done ? <span className="text-sm font-bold">✓</span> : <Icon className="w-5 h-5" />}
                   </div>
-                  <div className="min-w-0 hidden sm:block text-left">
-                    <p className={cn("text-sm font-semibold whitespace-nowrap", active || done ? "text-primary" : "text-[#9CA3AF]")}>
+                  <div className="min-w-0 hidden lg:block text-left max-w-[6.5rem] xl:max-w-none">
+                    <p
+                      className={cn(
+                        "text-sm font-semibold truncate xl:whitespace-nowrap",
+                        active || done ? "text-primary" : "text-[#9CA3AF]"
+                      )}
+                    >
                       {s.label}
                     </p>
-                    <p className="text-xs text-[#9CA3AF] whitespace-nowrap">{s.description}</p>
+                    <p className="hidden xl:block text-xs text-[#9CA3AF] whitespace-nowrap">{s.description}</p>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
-        <p className="text-xs text-[#6B7280] mt-4 sm:hidden text-center">
+        <p className="text-xs text-[#6B7280] mt-4 xl:hidden text-center">
           Étape {step} sur 4 — {STEPS[step - 1].label}
         </p>
       </div>
@@ -344,11 +349,11 @@ export default function KitchenOrderWizard({
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
-        className={cn(wizardLocked && "pointer-events-none opacity-[0.52] saturate-[0.65]")}
+        className={cn("min-w-0 max-w-full", wizardLocked && "pointer-events-none opacity-[0.52] saturate-[0.65]")}
       >
         {step === 1 && (
-          <div className="grid lg:grid-cols-12 gap-8 items-start">
-            <div className="lg:col-span-7 space-y-4 order-2 lg:order-1">
+          <div className="grid min-w-0 lg:grid-cols-12 gap-8 items-start">
+            <div className="min-w-0 lg:col-span-7 space-y-4 order-2 lg:order-1">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="text-lg font-semibold text-primary shrink-0">Menus</h2>
                 <div className="relative w-full sm:max-w-xs">
@@ -417,7 +422,7 @@ export default function KitchenOrderWizard({
                 )}
               </div>
             </div>
-            <div className="lg:col-span-5 order-1 lg:order-2">
+            <div className="min-w-0 lg:col-span-5 order-1 lg:order-2">
               <Card className="overflow-hidden border-primary/20 shadow-md ring-1 ring-primary/15">
                 <CardHeader className="bg-gradient-to-br from-primary to-primary/90 text-primary-foreground">
                   <div className="flex items-center gap-2">
@@ -431,7 +436,7 @@ export default function KitchenOrderWizard({
                   ) : (
                     <div className="max-h-[15rem] divide-y divide-[#F5F5F5] overflow-y-auto">
                       {cart.map((item) => (
-                        <div key={item.menuId} className="flex items-center gap-3 p-4">
+                        <div key={item.menuId} className="flex min-w-0 items-center gap-2 p-4 sm:gap-3">
                           <ProductThumb imageUrl={item.image} name={item.name} sizeClass="h-12 w-12" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-medium">{item.name}</p>
@@ -570,27 +575,27 @@ export default function KitchenOrderWizard({
             </Button>
           )}
         </div>
-        <div className="flex gap-2 sm:ml-auto">
+        <div className="flex flex-wrap gap-2 sm:ml-auto sm:flex-nowrap">
           {step === 1 && (
-            <Button onClick={() => setStep(2)} disabled={wizardLocked || cart.length === 0} className="min-w-[160px]">
+            <Button onClick={() => setStep(2)} disabled={wizardLocked || cart.length === 0} className="w-full sm:w-auto sm:min-w-[160px]">
               Continuer
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           )}
           {step === 2 && (
-            <Button onClick={() => setStep(3)} disabled={wizardLocked || !kitchenWaitressId} className="min-w-[160px]">
+            <Button onClick={() => setStep(3)} disabled={wizardLocked || !kitchenWaitressId} className="w-full sm:w-auto sm:min-w-[160px]">
               Continuer
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           )}
           {step === 3 && (
-            <Button onClick={() => setStep(4)} disabled={wizardLocked || !plateId} className="min-w-[160px]">
+            <Button onClick={() => setStep(4)} disabled={wizardLocked || !plateId} className="w-full sm:w-auto sm:min-w-[160px]">
               Récapitulatif
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           )}
           {step === 4 && (
-            <Button onClick={handleSubmit} disabled={isSubmitting || wizardLocked} size="lg" className="min-w-[220px]">
+            <Button onClick={handleSubmit} disabled={isSubmitting || wizardLocked} size="lg" className="w-full sm:w-auto sm:min-w-[220px]">
               {isSubmitting ? "Enregistrement…" : mode === "create" ? "Créer la commande" : "Enregistrer"}
             </Button>
           )}

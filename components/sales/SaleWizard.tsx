@@ -364,7 +364,7 @@ export default function SaleWizard({
   const backHref = mode === "create" ? "/sales" : `/sales/${editSaleId}`;
 
   return (
-    <div className="min-h-[calc(100vh-6rem)] pb-8">
+    <div className="min-w-0 max-w-full min-h-[calc(100vh-6rem)] pb-8">
       <div className="mb-8">
         <Link
           href={backHref}
@@ -396,8 +396,8 @@ export default function SaleWizard({
         )}
       </div>
 
-      <div className="mb-10 w-full flex flex-col items-center">
-        <div className="flex flex-col items-center gap-12 sm:flex-row sm:items-center sm:justify-center sm:gap-14 md:gap-20 lg:gap-24">
+      <div className="mb-10 w-full flex flex-col items-center min-w-0 max-w-full">
+        <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-center sm:justify-center sm:gap-10 lg:gap-6 xl:gap-10">
           {STEPS.map((s, idx) => {
             const Icon = s.icon;
             const active = step === s.n;
@@ -408,7 +408,7 @@ export default function SaleWizard({
                 {idx > 0 && prevStep && (
                   <div
                     className={cn(
-                      "hidden sm:block h-0.5 w-24 md:w-36 lg:w-44 shrink-0 rounded-full transition-colors",
+                      "hidden lg:block h-0.5 w-12 xl:w-16 shrink-0 rounded-full transition-colors",
                       step > prevStep.n ? "bg-primary" : "bg-[#E5E5E5]"
                     )}
                   />
@@ -428,16 +428,16 @@ export default function SaleWizard({
                       <Icon className="w-5 h-5" />
                     )}
                   </div>
-                  <div className="min-w-0 hidden sm:block text-left">
+                  <div className="min-w-0 hidden lg:block text-left max-w-[6.5rem] xl:max-w-none">
                     <p
                       className={cn(
-                        "text-sm font-semibold whitespace-nowrap",
+                        "text-sm font-semibold truncate",
                         active || done ? "text-primary" : "text-[#9CA3AF]"
                       )}
                     >
                       {s.label}
                     </p>
-                    <p className="text-xs text-[#9CA3AF] whitespace-nowrap">{s.description}</p>
+                    <p className="hidden xl:block text-xs text-[#9CA3AF] whitespace-nowrap">{s.description}</p>
                   </div>
                 </div>
               </div>
@@ -752,7 +752,7 @@ export default function SaleWizard({
             </Button>
           )}
         </div>
-        <div className="flex gap-2 sm:ml-auto">
+        <div className="flex flex-wrap gap-2 sm:ml-auto sm:flex-nowrap">
           {step === 1 && (
             <Button
               onClick={() => setStep(2)}

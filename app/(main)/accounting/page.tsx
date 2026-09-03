@@ -285,7 +285,7 @@ export default function AccountingPage() {
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border">
+      <div className="min-w-0 max-w-full overflow-x-auto rounded-xl border">
         <table className="w-full min-w-[800px] text-sm">
           <thead>
             <tr className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">

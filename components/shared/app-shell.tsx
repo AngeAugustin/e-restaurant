@@ -23,7 +23,7 @@ function MainArea({ children }: { children: ReactNode }) {
       <AppModuleHeader />
       <div
         className={cn(
-          "mx-auto max-w-7xl px-4 py-6 sm:px-6",
+          "mx-auto min-w-0 max-w-7xl px-4 py-6 sm:px-6",
           isCollapsed
             ? "lg:mx-0 lg:w-full lg:min-w-0 lg:max-w-none lg:px-6 xl:px-8"
             : "lg:mx-auto lg:px-8"
@@ -39,7 +39,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <SidebarLayoutProvider>
       <AppModuleProvider>
-        <div className="min-h-screen bg-[#FAFAFA]">
+        <div className="min-h-screen overflow-x-hidden bg-[#FAFAFA]">
           <Sidebar />
           <MobileNav />
           <MainArea>{children}</MainArea>

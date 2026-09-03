@@ -362,7 +362,7 @@ export default function AnalyticsPage() {
             {!isLoading && (
               <>
                 <Separator className="mb-4" />
-                <div className="overflow-x-auto rounded-md border">
+                <div className="min-w-0 max-w-full overflow-x-auto rounded-md border">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/40">
