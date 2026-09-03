@@ -131,20 +131,20 @@ export default function KitchenOrdersPage() {
           empty={!listLoading && totalCount === 0}
           emptyMessage="Aucune commande cuisine"
           skeletonRows={6}
-          tableMinWidthClass="min-w-[960px]"
+          tableMinWidthClass="min-w-[640px]"
           skeletonColSpan={7}
         >
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+          <div className="overflow-x-auto px-8 sm:px-14 lg:px-20">
+            <table className="w-full min-w-[640px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200/70 bg-slate-950/[0.025] text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  <th className="whitespace-nowrap px-6 py-3.5 font-semibold">Date</th>
-                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Plaquette</th>
-                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Serveuse-cuisinière</th>
-                  <th className="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Menus</th>
-                  <th className="whitespace-nowrap px-4 py-3.5 text-right font-semibold">Total</th>
-                  <th className="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Statut</th>
-                  <th className="min-w-[220px] whitespace-nowrap px-6 py-3.5 text-right font-semibold">Actions</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 font-semibold">Date</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 font-semibold">Plaquette</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 font-semibold">Serveuse-cuisinière</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 text-center font-semibold">Menus</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 text-right font-semibold">Total</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 text-center font-semibold">Statut</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/90">
@@ -154,24 +154,24 @@ export default function KitchenOrdersPage() {
                     const plate = order.plate as { number: string };
                     return (
                       <motion.tr key={order._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="group hover:bg-gradient-to-r hover:from-violet-500/[0.04]">
-                        <td className="px-6 py-4">
+                        <td className="px-1.5 py-3">
                           <span className="inline-flex rounded-full border border-slate-200/60 bg-slate-500/[0.08] px-2.5 py-0.5 text-xs font-medium">
                             {formatDateTime(order.createdAt)}
                           </span>
                         </td>
-                        <td className="px-4 py-4 font-medium">{plate?.number ?? "—"}</td>
-                        <td className="px-4 py-4 text-slate-600">
+                        <td className="px-1.5 py-3 font-medium">{plate?.number ?? "—"}</td>
+                        <td className="px-1.5 py-3 text-slate-600">
                           {kitchenWaitress?.firstName
                             ? `${kitchenWaitress.firstName} ${kitchenWaitress.lastName}`
                             : "—"}
                         </td>
-                        <td className="px-4 py-4 text-center">
+                        <td className="px-1.5 py-3 text-center">
                           <span className="inline-flex items-center rounded-full border border-cyan-200/55 bg-cyan-500/10 px-2.5 py-0.5 text-xs font-semibold">
                             {order.items.length} menu{order.items.length > 1 ? "s" : ""}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-right font-semibold">{formatCurrency(order.totalAmount)}</td>
-                        <td className="px-4 py-4 text-center">
+                        <td className="px-1.5 py-3 text-right font-semibold">{formatCurrency(order.totalAmount)}</td>
+                        <td className="px-1.5 py-3 text-center">
                           {order.status === "COMPLETED" ? (
                             <span className="inline-flex rounded-full border border-emerald-200/60 bg-emerald-500/12 px-2.5 py-0.5 text-xs font-semibold text-emerald-900">Clôturée</span>
                           ) : order.status === "CANCELLED" ? (
@@ -180,8 +180,8 @@ export default function KitchenOrdersPage() {
                             <span className="inline-flex rounded-full border border-violet-200/60 bg-violet-500/12 px-2.5 py-0.5 text-xs font-semibold text-violet-900">En attente</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        <td className="px-1.5 py-3 text-right">
+                          <div className="flex flex-wrap items-center justify-end gap-1">
                             <Button
                               size="icon"
                               variant="outline"

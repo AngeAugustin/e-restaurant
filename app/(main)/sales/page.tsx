@@ -144,20 +144,20 @@ export default function SalesPage() {
           empty={!listLoading && totalCount === 0}
           emptyMessage="Aucune vente enregistrée"
           skeletonRows={6}
-          tableMinWidthClass="min-w-[960px]"
+          tableMinWidthClass="min-w-[640px]"
           skeletonColSpan={7}
         >
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+          <div className="overflow-x-auto px-8 sm:px-14 lg:px-20">
+            <table className="w-full min-w-[640px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200/70 bg-slate-950/[0.025] text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  <th className="whitespace-nowrap px-6 py-3.5 font-semibold">Date</th>
-                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Tables</th>
-                  <th className="whitespace-nowrap px-4 py-3.5 font-semibold">Serveuse</th>
-                  <th className="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Articles</th>
-                  <th className="whitespace-nowrap px-4 py-3.5 text-right font-semibold">Total</th>
-                  <th className="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Statut</th>
-                  <th className="min-w-[220px] whitespace-nowrap px-6 py-3.5 text-right font-semibold">Actions</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 font-semibold">Date</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 font-semibold">Tables</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 font-semibold">Serveuse</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 text-center font-semibold">Articles</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 text-right font-semibold">Total</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 text-center font-semibold">Statut</th>
+                  <th className="whitespace-nowrap px-1.5 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/90">
@@ -172,29 +172,29 @@ export default function SalesPage() {
                         exit={{ opacity: 0 }}
                         className="group border-b border-transparent transition-colors duration-200 hover:bg-gradient-to-r hover:from-violet-500/[0.04] hover:via-transparent hover:to-cyan-500/[0.03]"
                       >
-                        <td className="px-6 py-4">
+                        <td className="px-1.5 py-3">
                           <span className="inline-flex rounded-full border border-slate-200/60 bg-slate-500/[0.08] px-2.5 py-0.5 text-xs font-medium text-slate-700">
                             {formatDateTime(sale.createdAt)}
                           </span>
                         </td>
                         <td
-                          className="max-w-[200px] truncate px-4 py-4 font-medium text-slate-900"
+                          className="max-w-[160px] truncate px-1.5 py-3 font-medium text-slate-900"
                           title={formatSaleTablesLine(sale)}
                         >
                           {formatSaleTablesLine(sale)}
                         </td>
-                        <td className="px-4 py-4 text-slate-600">
+                        <td className="px-1.5 py-3 text-slate-600">
                           {waitress?.firstName} {waitress?.lastName}
                         </td>
-                        <td className="px-4 py-4 text-center">
+                        <td className="px-1.5 py-3 text-center">
                           <span className="inline-flex items-center rounded-full border border-cyan-200/55 bg-cyan-500/10 px-2.5 py-0.5 text-xs font-semibold text-cyan-950/85">
                             {sale.items.length} article{sale.items.length > 1 ? "s" : ""}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-right font-semibold text-slate-900">
+                        <td className="px-1.5 py-3 text-right font-semibold text-slate-900">
                           {formatCurrency(sale.totalAmount)}
                         </td>
-                        <td className="px-4 py-4 text-center">
+                        <td className="px-1.5 py-3 text-center">
                           {sale.status === "COMPLETED" ? (
                             <span className="inline-flex items-center rounded-full border border-emerald-200/60 bg-emerald-500/12 px-2.5 py-0.5 text-xs font-semibold text-emerald-900 backdrop-blur-[2px]">
                               Clôturée
@@ -209,8 +209,8 @@ export default function SalesPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex flex-wrap items-center justify-end gap-1.5 opacity-95 transition group-hover:opacity-100">
+                        <td className="px-1.5 py-3 text-right">
+                          <div className="flex flex-wrap items-center justify-end gap-1 opacity-95 transition group-hover:opacity-100">
                             <Button
                               size="icon"
                               variant="outline"
