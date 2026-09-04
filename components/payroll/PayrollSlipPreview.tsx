@@ -11,8 +11,8 @@ import { DEFAULT_LOGO_URL, DEFAULT_SOLUTION_NAME } from "@/lib/app-settings";
 import { PAYROLL_TYPE_LABEL, payrollBaseSalary, payrollBonuses } from "@/lib/payroll";
 import type { IPayroll } from "@/types";
 
-const EMPLOYER_SIGNATURE_SRC = "/signature.jpeg";
-const EMPLOYER_SIGNATURE_NAME = "D. Protus";
+const PROMOTER_SIGNATURE_SRC = "/signature.jpeg";
+const PROMOTER_SIGNATURE_NAME = "Protus Djidjoho DAH ADANLIENCLOUNON";
 
 async function fetchBranding(): Promise<{ logoUrl: string; solutionName: string }> {
   const res = await fetch("/api/settings");
@@ -231,15 +231,28 @@ export function PayrollSlipPreview({
           </section>
         ) : null}
 
-        <section className="mt-10 text-center text-[12px]">
-          <p className="font-semibold text-slate-800">L&apos;employeur</p>
-          <div className="mx-auto mt-4 flex flex-col items-center justify-center">
-            <img
-              src={EMPLOYER_SIGNATURE_SRC}
-              alt={`Signature de ${EMPLOYER_SIGNATURE_NAME}`}
-              className="h-24 w-auto max-w-[220px] object-contain"
-            />
-            <p className="mt-3 text-[13px] font-semibold text-slate-900">{EMPLOYER_SIGNATURE_NAME}</p>
+        <section className="mt-10 grid grid-cols-2 gap-8 text-[12px]">
+          <div className="text-center">
+            <p className="font-semibold text-slate-800">
+              {PAYROLL_TYPE_LABEL[payroll.beneficiaryType]}
+            </p>
+            <div className="mt-4 flex min-h-[96px] flex-col items-center justify-end">
+              <div className="h-24 w-full max-w-[220px]" aria-hidden />
+              <p className="mt-3 text-[13px] font-semibold text-slate-900">{personName(payroll)}</p>
+            </div>
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-slate-800">Le promoteur</p>
+            <div className="mt-4 flex flex-col items-center justify-center">
+              <img
+                src={PROMOTER_SIGNATURE_SRC}
+                alt={`Signature de ${PROMOTER_SIGNATURE_NAME}`}
+                className="h-24 w-auto max-w-[220px] object-contain"
+              />
+              <p className="mt-3 text-[13px] font-semibold leading-snug text-slate-900">
+                {PROMOTER_SIGNATURE_NAME}
+              </p>
+            </div>
           </div>
         </section>
 
