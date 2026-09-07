@@ -20,6 +20,12 @@ export interface IPayrollDocument extends Document {
   comment?: string;
   attachmentUrl?: string;
   isPaid?: boolean;
+  promoter?: {
+    user: Types.ObjectId;
+    firstName: string;
+    lastName: string;
+    signatureUrl?: string;
+  };
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -85,6 +91,12 @@ const PayrollSchema = new Schema<IPayrollDocument>(
       type: Boolean,
       default: false,
     },
+    promoter: {
+      user: { type: Schema.Types.ObjectId, ref: "User" },
+      firstName: { type: String, trim: true },
+      lastName: { type: String, trim: true },
+      signatureUrl: { type: String, trim: true },
+    },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -104,6 +116,7 @@ if (
   (existingPayroll && !existingPayroll.schema.path("bonuses")) ||
   (existingPayroll && !existingPayroll.schema.path("kitchenWaitress")) ||
   (existingPayroll && !existingPayroll.schema.path("isPaid")) ||
+  (existingPayroll && !existingPayroll.schema.path("promoter")) ||
   (existingPayroll &&
     !((existingPayroll.schema.path("beneficiaryType") as { enumValues?: string[] } | undefined)?.enumValues?.includes(
       "KITCHEN_WAITRESS"

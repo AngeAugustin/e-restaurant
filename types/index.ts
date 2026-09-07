@@ -8,6 +8,7 @@ export interface IUser {
   phone: string;
   address: string;
   role: UserRole;
+  signatureUrl?: string;
   isActive?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -243,6 +244,13 @@ export interface IJobTitle {
   updatedAt: string;
 }
 
+export interface IPayrollPromoter {
+  user: string;
+  firstName: string;
+  lastName: string;
+  signatureUrl?: string;
+}
+
 export interface IPayroll {
   _id: string;
   beneficiaryType: PayrollBeneficiaryType;
@@ -262,6 +270,8 @@ export interface IPayroll {
   comment?: string;
   attachmentUrl?: string;
   isPaid?: boolean;
+  /** Snapshot du promoteur (créateur) au moment de la création */
+  promoter?: IPayrollPromoter;
   createdBy: IUser | string;
   createdAt: string;
   updatedAt: string;

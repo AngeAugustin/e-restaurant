@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, ShoppingCart, TrendingUp, Clock, CheckCircle2, Eye, Pencil, Trash2 } from "lucide-react";
+import { Plus, ShoppingCart, TrendingUp, Clock, CheckCircle2, Eye, Pencil, Trash2, BadgeCheck } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { PremiumTableShell, premiumTableSelectClass } from "@/components/shared/PremiumTableShell";
+import { VerifyTicketDialog } from "@/components/shared/VerifyTicketDialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
@@ -40,6 +41,7 @@ export default function SalesPage() {
   const qc = useQueryClient();
   const [saleToClose, setSaleToClose] = useState<ISale | null>(null);
   const [saleToCancel, setSaleToCancel] = useState<ISale | null>(null);
+  const [verifyOpen, setVerifyOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
 
@@ -93,14 +95,22 @@ export default function SalesPage() {
         title="Ventes"
         subtitle="Gérez les commandes et ventes"
         action={
-          <Button asChild>
-            <Link href="/sales/new">
-              <Plus className="w-4 h-4" />
-              Nouvelle vente
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" className="gap-1.5" onClick={() => setVerifyOpen(true)}>
+              <BadgeCheck className="h-4 w-4" />
+              Vérifier ticket
+            </Button>
+            <Button asChild>
+              <Link href="/sales/new">
+                <Plus className="w-4 h-4" />
+                Nouvelle vente
+              </Link>
+            </Button>
+          </div>
         }
       />
+
+      <VerifyTicketDialog open={verifyOpen} onOpenChange={setVerifyOpen} module="bar" />
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

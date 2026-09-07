@@ -24,6 +24,7 @@ import {
   Briefcase,
   Tags,
   HandCoins,
+  PenLine,
 } from "lucide-react";
 
 export type AppModuleId = "bar" | "cuisine" | "paie" | "administration";
@@ -61,6 +62,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { href: "/accounting/fonctions", label: "Fonctions", icon: Briefcase, roles: ["directeur", "directrice"], module: "paie" },
   { href: "/accounting/categories", label: "Catégories", mobileLabel: "Catég.", icon: Tags, roles: ["directeur", "directrice"], module: "paie" },
   { href: "/accounting/modes-paiement", label: "Modes de paiement", mobileLabel: "Paiement", icon: HandCoins, roles: ["directeur", "directrice"], module: "paie" },
+  { href: "/accounting/signatures", label: "Signatures", icon: PenLine, roles: ["directeur", "directrice"], module: "paie" },
   { href: "/payroll", label: "Paie", icon: Banknote, roles: ["directeur", "directrice"], module: "paie" },
   { href: "/expenses", label: "Dépenses", icon: Landmark, roles: ["directeur", "directrice"], module: "paie" },
 

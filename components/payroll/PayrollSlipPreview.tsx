@@ -11,8 +11,8 @@ import { DEFAULT_LOGO_URL, DEFAULT_SOLUTION_NAME } from "@/lib/app-settings";
 import { PAYROLL_TYPE_LABEL, payrollBaseSalary, payrollBonuses } from "@/lib/payroll";
 import type { IPayroll } from "@/types";
 
-const PROMOTER_SIGNATURE_SRC = "/signature.jpeg";
-const PROMOTER_SIGNATURE_NAME = "Protus Djidjoho DAH ADANLIENCLOUNON";
+const LEGACY_PROMOTER_SIGNATURE_SRC = "/signature.jpeg";
+const LEGACY_PROMOTER_SIGNATURE_NAME = "Protus Djidjoho DAH ADANLIENCLOUNON";
 
 async function fetchBranding(): Promise<{ logoUrl: string; solutionName: string }> {
   const res = await fetch("/api/settings");
@@ -27,6 +27,29 @@ function personName(p: IPayroll): string {
   if (p.beneficiaryType === "KITCHEN_WAITRESS") return n(p.kitchenWaitress as { firstName?: string; lastName?: string }) || "—";
   if (p.beneficiaryType === "COOK") return n(p.cook as { firstName?: string; lastName?: string }) || "—";
   return n(p.user as { firstName?: string; lastName?: string }) || "—";
+}
+
+function promoterDisplay(p: IPayroll): { name: string; signatureUrl?: string } {
+  if (p.promoter?.firstName || p.promoter?.lastName) {
+    return {
+      name: `${p.promoter.firstName ?? ""} ${p.promoter.lastName ?? ""}`.trim(),
+      signatureUrl: p.promoter.signatureUrl,
+    };
+  }
+  const createdBy = p.createdBy;
+  if (typeof createdBy === "object" && createdBy) {
+    const name = `${createdBy.firstName ?? ""} ${createdBy.lastName ?? ""}`.trim();
+    if (name) {
+      return {
+        name,
+        signatureUrl: createdBy.signatureUrl,
+      };
+    }
+  }
+  return {
+    name: LEGACY_PROMOTER_SIGNATURE_NAME,
+    signatureUrl: LEGACY_PROMOTER_SIGNATURE_SRC,
+  };
 }
 
 function slipNumber(id: string): string {
@@ -73,6 +96,7 @@ export function PayrollSlipPreview({
 
   const baseSalary = payrollBaseSalary(payroll);
   const bonuses = payrollBonuses(payroll);
+  const promoter = promoterDisplay(payroll);
 
   const handleDownloadPdf = async () => {
     const el = slipRef.current;
@@ -244,13 +268,20 @@ export function PayrollSlipPreview({
           <div className="text-center">
             <p className="font-semibold text-slate-800">Le promoteur</p>
             <div className="mt-4 flex flex-col items-center justify-center">
-              <img
-                src={PROMOTER_SIGNATURE_SRC}
-                alt={`Signature de ${PROMOTER_SIGNATURE_NAME}`}
-                className="h-24 w-auto max-w-[220px] object-contain"
-              />
+              {promoter.signatureUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={promoter.signatureUrl}
+                  alt={`Signature de ${promoter.name}`}
+                  className="h-24 w-auto max-w-[220px] object-contain"
+                />
+              ) : (
+                <div className="flex h-24 w-full max-w-[220px] items-center justify-center border border-dashed border-slate-300 text-[11px] text-slate-400">
+                  Signature manquante
+                </div>
+              )}
               <p className="mt-3 text-[13px] font-semibold leading-snug text-slate-900">
-                {PROMOTER_SIGNATURE_NAME}
+                {promoter.name || "—"}
               </p>
             </div>
           </div>

@@ -6,10 +6,10 @@ import { DIRECTION_ROLES } from "@/lib/roles";
 import { parsePayrollBonuses, payrollBonusTotal } from "@/lib/payroll";
 import { resolvePayrollBaseSalary } from "@/lib/payroll-server";
 import Payroll from "@/models/Payroll";
+import User from "@/models/User";
 import "@/models/Waitress";
 import "@/models/KitchenWaitress";
 import "@/models/Cook";
-import "@/models/User";
 import "@/models/JobTitle";
 
 const TYPES = new Set(["WAITRESS", "KITCHEN_WAITRESS", "COOK", "MANAGER"]);
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       .populate("cook", "firstName lastName")
       .populate("user", "firstName lastName role")
       .populate("jobTitle", "name salary")
-      .populate("createdBy", "firstName lastName")
+      .populate("createdBy", "firstName lastName signatureUrl")
       .sort({ paidAt: -1, createdAt: -1 })
       .lean(),
     Payroll.aggregate<{ totalAmount: number; count: number }>([
@@ -118,6 +118,16 @@ export async function POST(req: NextRequest) {
     isPaid: false,
   };
 
+  const me = await User.findById(session!.user.id).select("firstName lastName signatureUrl").lean();
+  if (me) {
+    payload.promoter = {
+      user: session!.user.id,
+      firstName: me.firstName,
+      lastName: me.lastName,
+      signatureUrl: me.signatureUrl || undefined,
+    };
+  }
+
   if (beneficiaryType === "WAITRESS") payload.waitress = new Types.ObjectId(body.personId);
   else if (beneficiaryType === "KITCHEN_WAITRESS") payload.kitchenWaitress = new Types.ObjectId(body.personId);
   else if (beneficiaryType === "COOK") payload.cook = new Types.ObjectId(body.personId);
@@ -133,6 +143,6 @@ export async function POST(req: NextRequest) {
   await payroll.populate("cook", "firstName lastName");
   await payroll.populate("user", "firstName lastName role");
   await payroll.populate("jobTitle", "name salary");
-  await payroll.populate("createdBy", "firstName lastName");
+  await payroll.populate("createdBy", "firstName lastName signatureUrl");
   return NextResponse.json(payroll, { status: 201 });
 }

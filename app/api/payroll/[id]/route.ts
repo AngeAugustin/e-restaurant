@@ -21,7 +21,7 @@ async function loadPopulated(id: string) {
     .populate("cook", "firstName lastName")
     .populate("user", "firstName lastName role")
     .populate("jobTitle", "name salary")
-    .populate("createdBy", "firstName lastName")
+    .populate("createdBy", "firstName lastName signatureUrl")
     .lean();
 }
 
